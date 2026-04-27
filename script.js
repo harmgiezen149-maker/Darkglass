@@ -39,8 +39,12 @@ var SYSTEM_ANALYZE = 'Je bent een expert in bas-gitaar sound design voor de Dark
   + 'DELAY: Digital Delay (Boss DD-3-stijl), Analog Delay (Boss DM-2-stijl), Modulation Delay (EHX Memory Man-stijl)\n'
   + 'REVERB: Room Reverb, Plate Reverb, Hall Reverb, Shimmer Reverb\n'
   + 'UTILITY: Gain, Split, Merge, Output, Volume Pedal\n\n'
-  + 'Structureer je antwoord ALTIJD exact zo:\n\n'
-  + 'B_SNAAR_VEREIST: ja of nee (zet dit ALTIJD als allereerste regel, geef ja als het nummer een lage B-snaar vereist of sterk aanbeveelt)\n\n'
+  + 'BELANGRIJK: Zet ALTIJD als absolute eerste regel van je antwoord:\n'
+  + 'B_SNAAR_VEREIST: ja\n'
+  + 'of\n'
+  + 'B_SNAAR_VEREIST: nee\n'
+  + 'Geef "ja" als het nummer een lage B-snaar (5e snaar, onder de E-snaar) vereist of sterk aanbeveelt voor het originele geluid. Geen andere tekst voor deze regel.\n\n'
+  + 'Daarna structureer je antwoord ALTIJD exact zo:\n\n'
   + '## TONE ANALYSE\n[analyse]\n\n'
   + '## SIGNAALCHAIN\n'
   + 'SERIEEL of PARALLEL\n'
@@ -163,6 +167,35 @@ function addMsg(role, text, id) {
 }
 
 // =====================
+// B-SNAAR DETECTIE
+// =====================
+function checkBSnaar(tekst) {
+  var t = tekst.toLowerCase();
+
+  // 1. Gestructureerde flag check
+  var regels = t.split('\n');
+  for (var i = 0; i < regels.length; i++) {
+    var r = regels[i].trim();
+    if (r.startsWith('b_snaar_vereist:')) {
+      return r.indexOf('ja') !== -1;
+    }
+  }
+
+  // 2. Keyword fallback als de AI de flag vergeet
+  var keywords = [
+    'lage b-snaar', 'lage b snaar', 'b-snaar nodig', 'b-snaar vereist',
+    'b-snaar wordt', 'b snaar wordt', 'vijfde snaar', '5e snaar',
+    'low b string', 'low-b', 'sub-lage', 'onder de e-snaar',
+    'b-snaar is noodzakelijk', 'b-snaar is vereist'
+  ];
+  for (var j = 0; j < keywords.length; j++) {
+    if (t.indexOf(keywords[j]) !== -1) return true;
+  }
+
+  return false;
+}
+
+// =====================
 // SIGNAALCHAIN RENDERER
 // =====================
 function renderChainRegel(chainStr) {
@@ -190,20 +223,15 @@ function toHtml(t) {
   var chainHtml = '';
   var inTips = false;
 
-  // Controleer B-snaar waarschuwing
-  if (selectedBass === 'pbass') {
-    for (var k = 0; k < regels.length; k++) {
-      if (regels[k].trim().toLowerCase().startsWith('b_snaar_vereist: ja')) {
-        html += '<div class="bsnaar-warning">'
-          + '<span class="bsnaar-icon">⚠</span>'
-          + '<div><strong>Let op: 4-snarige bas</strong><br>'
-          + 'Dit nummer maakt waarschijnlijk gebruik van een lage B-snaar. '
-          + 'Met je Fender Precision Bass (4-snarig) kun je mogelijk niet alle noten spelen zoals in het origineel. '
-          + 'Overweeg de Spector NS Ethos 5 te gebruiken.</div>'
-          + '</div>';
-        break;
-      }
-    }
+  // B-snaar waarschuwing bovenaan
+  if (selectedBass === 'pbass' && checkBSnaar(t)) {
+    html += '<div class="bsnaar-warning">'
+      + '<span class="bsnaar-icon">⚠</span>'
+      + '<div><strong>Let op: 4-snarige bas</strong><br>'
+      + 'Dit nummer maakt waarschijnlijk gebruik van een lage B-snaar. '
+      + 'Met je Fender Precision Bass (4-snarig) kun je mogelijk niet alle noten spelen zoals in het origineel. '
+      + 'Overweeg de Spector NS Ethos 5 te gebruiken.</div>'
+      + '</div>';
   }
 
   function sluitBlok() {
@@ -245,7 +273,7 @@ function toHtml(t) {
     var r = regels[i].trim();
     if (!r) continue;
 
-    // Sla de B_SNAAR regel over, die is al verwerkt
+    // Sla B_SNAAR regel over
     if (r.toLowerCase().startsWith('b_snaar_vereist:')) continue;
 
     if (r.startsWith('## ')) {
