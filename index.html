@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Darkglass Anagram — Tone Architect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <div class="logo-group">
+      <div class="logo-mark">DG</div>
+      <div class="logo-text">
+        <span class="logo-title">ANAGRAM</span>
+        <span class="logo-sub">TONE ARCHITECT</span>
+      </div>
+    </div>
+    <div class="header-dots">
+      <span class="dot active"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
+    </div>
+  </header>
+
+  <main>
+
+    <section class="panel" id="setupPanel">
+      <div class="panel-label">01 / SETUP</div>
+
+      <div class="field-group">
+        <label class="field-label">BASS SELECTIE</label>
+        <div class="bass-selector">
+          <button class="bass-btn active" data-bass="spector">
+            <span class="bass-name">SPECTOR NS ETHOS 5</span>
+            <span class="bass-detail">Actief · 5-snarig · EMG-Hz</span>
+          </button>
+          <button class="bass-btn" data-bass="pbass">
+            <span class="bass-name">FENDER PRECISION BASS</span>
+            <span class="bass-detail">Passief · 4-snarig · Split-P</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="artistInput">ARTIEST</label>
+        <input type="text" id="artistInput" class="text-input" placeholder="bijv. Tool, Karnivool, VOLA..." />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="songInput">SONGTITEL</label>
+        <input type="text" id="songInput" class="text-input" placeholder="bijv. Schism, We Are, Straight Lines..." />
+      </div>
+
+      <button class="analyze-btn" id="analyzeBtn" onclick="analyzeTone()">
+        <span id="btnText">ANALYSEER TONE</span>
+        <span>→</span>
+      </button>
+    </section>
+
+    <section class="panel hidden" id="outputPanel">
+      <div class="panel-label">02 / ANAGRAM PRESET</div>
+      <div class="output-meta" id="outputMeta"></div>
+      <div class="output-content" id="outputContent"></div>
+    </section>
+
+    <section class="panel hidden" id="chatPanel">
+      <div class="panel-label">03 / FINE-TUNE CHAT</div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-row">
+        <input type="text" id="chatInput" class="text-input" placeholder="Stel een vraag over de sound..." onkeydown="if(event.key==='Enter') sendChat()" />
+        <button class="send-btn" onclick="sendChat()">&#9658;</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>DARKGLASS ANAGRAM TONE ARCHITECT — HARM'S SIGNAL CHAIN</footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
