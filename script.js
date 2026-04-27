@@ -40,6 +40,7 @@ var SYSTEM_ANALYZE = 'Je bent een expert in bas-gitaar sound design voor de Dark
   + 'REVERB: Room Reverb, Plate Reverb, Hall Reverb, Shimmer Reverb\n'
   + 'UTILITY: Gain, Split, Merge, Output, Volume Pedal\n\n'
   + 'Structureer je antwoord ALTIJD exact zo:\n\n'
+  + 'B_SNAAR_VEREIST: ja of nee (zet dit ALTIJD als allereerste regel, geef ja als het nummer een lage B-snaar vereist of sterk aanbeveelt)\n\n'
   + '## TONE ANALYSE\n[analyse]\n\n'
   + '## SIGNAALCHAIN\n'
   + 'SERIEEL of PARALLEL\n'
@@ -189,6 +190,22 @@ function toHtml(t) {
   var chainHtml = '';
   var inTips = false;
 
+  // Controleer B-snaar waarschuwing
+  if (selectedBass === 'pbass') {
+    for (var k = 0; k < regels.length; k++) {
+      if (regels[k].trim().toLowerCase().startsWith('b_snaar_vereist: ja')) {
+        html += '<div class="bsnaar-warning">'
+          + '<span class="bsnaar-icon">⚠</span>'
+          + '<div><strong>Let op: 4-snarige bas</strong><br>'
+          + 'Dit nummer maakt waarschijnlijk gebruik van een lage B-snaar. '
+          + 'Met je Fender Precision Bass (4-snarig) kun je mogelijk niet alle noten spelen zoals in het origineel. '
+          + 'Overweeg de Spector NS Ethos 5 te gebruiken.</div>'
+          + '</div>';
+        break;
+      }
+    }
+  }
+
   function sluitBlok() {
     if (!inBlok) return;
     var settingsHtml = blokSettings.map(function(s) {
@@ -227,6 +244,9 @@ function toHtml(t) {
   for (var i = 0; i < regels.length; i++) {
     var r = regels[i].trim();
     if (!r) continue;
+
+    // Sla de B_SNAAR regel over, die is al verwerkt
+    if (r.toLowerCase().startsWith('b_snaar_vereist:')) continue;
 
     if (r.startsWith('## ')) {
       sluitBlok(); sluitChain(); sluitTips();
