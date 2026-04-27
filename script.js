@@ -82,8 +82,11 @@ function analyzeTone() {
     '<div class="loading"><div class="vu"><span></span><span></span><span></span><span></span><span></span><span></span></div><p>Bastone analyseren...</p></div>';
   document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
 
+  var extra = document.getElementById('extraInput').value.trim();
+
   var userMsg = 'Ik wil de bastone van "' + song + '" van ' + artist
-    + ' namaken met mijn ' + bassLabel + ' en de Darkglass Anagram. Geef me een volledig preset-plan.';
+    + ' namaken met mijn ' + bassLabel + ' en de Darkglass Anagram. Geef me een volledig preset-plan.'
+    + (extra ? '\n\nExtra wensen van de speler: ' + extra : '');
 
   chatHistory = [{ role: 'user', content: userMsg }];
   chatContext = artist + ' - ' + song + ' | ' + bassLabel;
