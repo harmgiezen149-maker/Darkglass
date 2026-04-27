@@ -246,6 +246,110 @@ footer {
   background: var(--bg2);
 }
 
+/* Blok kaarten */
+.blok-kaart {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent3);
+  border-radius: 4px;
+  margin: 0.75rem 0;
+  overflow: hidden;
+}
+.blok-titel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  background: rgba(124,92,252,0.08);
+  border-bottom: 1px solid var(--border);
+}
+.blok-nummer {
+  font-family: var(--font-a);
+  font-size: 0.6rem;
+  background: var(--accent3);
+  color: white;
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+  letter-spacing: 0.1em;
+}
+.blok-naam {
+  font-family: var(--font-a);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.blok-body { padding: 0.875rem 1rem; }
+.blok-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.setting-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.4rem 0.6rem;
+}
+.setting-param {
+  font-family: var(--font-a);
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  color: var(--text-dimmer);
+  text-transform: uppercase;
+}
+.setting-waarde {
+  font-family: var(--font-b);
+  font-size: 0.78rem;
+  color: var(--accent2);
+  font-weight: 700;
+  margin-top: 1px;
+}
+.blok-uitleg {
+  font-size: 0.76rem;
+  line-height: 1.65;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+  margin-top: 0.25rem;
+}
+.parallel-badge {
+  display: inline-block;
+  font-family: var(--font-a);
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  background: rgba(255,77,109,0.15);
+  border: 1px solid var(--accent2);
+  color: var(--accent2);
+  padding: 0.2rem 0.5rem;
+  border-radius: 2px;
+  margin-bottom: 0.75rem;
+}
+.sectie-titel {
+  font-family: var(--font-a);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin: 1.5rem 0 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.tip-box {
+  background: rgba(0,229,176,0.05);
+  border: 1px solid rgba(0,229,176,0.2);
+  border-radius: 4px;
+  padding: 0.875rem 1rem;
+  font-size: 0.76rem;
+  line-height: 1.65;
+  color: var(--text-dim);
+  margin-top: 0.5rem;
+}
+.tip-box strong { color: var(--accent); }
+
 @media (max-width: 580px) {
   main { padding: 1rem; }
   header { padding: 1rem; }
