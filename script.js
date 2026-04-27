@@ -125,15 +125,26 @@ function sendChat() {
   if (!msg) return;
   input.value = '';
 
+  // Toon gebruikersbericht in chat
   addMsg('user', msg);
+
+  // Voeg toe aan geschiedenis als extra wens
   chatHistory.push({ role: 'user', content: msg });
 
+  // Laadmelding in chat
   var tid = 'typing' + Date.now();
-  addMsg('assistant', '...', tid);
+  addMsg('assistant', 'Preset wordt bijgewerkt...');
 
-  var systemChat = 'Je bent een expert in bas-gitaar sound design voor de Darkglass Anagram. '
-    + 'Context: ' + chatContext + '. '
-    + 'Help de gebruiker de preset verder verfijnen met officiële Anagram bloknamen. Antwoord in het Nederlands.';
+  // Laadanimatie in panel 02
+  document.getElementById('outputContent').innerHTML =
+    '<div class="loading"><div class="vu"><span></span><span></span><span></span><span></span><span></span><span></span></div><p>Preset bijwerken...</p></div>';
+  document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
+
+  // Vraag een volledig nieuwe preset op basis van de volledige geschiedenis
+  var systemChat = SYSTEM_ANALYZE
+    + '\n\nDe gebruiker heeft de volgende aanvullende wens opgegeven. '
+    + 'Genereer een VOLLEDIG NIEUW en BIJGEWERKT preset-plan in exact hetzelfde formaat als hiervoor. '
+    + 'Verwerk de aanpassing in de nieuwe preset. Geef geen uitleg in tekst — alleen het volledige preset-plan.';
 
   fetch('/api/chat', {
     method: 'POST',
@@ -144,16 +155,27 @@ function sendChat() {
   .then(function(d) {
     if (d.error) throw new Error(d.error);
     chatHistory.push({ role: 'assistant', content: d.content });
-    var el = document.getElementById(tid);
-    if (el) el.querySelector('.msg-bubble').innerHTML = toHtmlSimple(d.content);
+
+    // Vernieuw panel 02 met nieuwe preset
+    document.getElementById('outputContent').innerHTML = toHtml(d.content);
+
+    // Bevestiging in chat (vervang laadmelding)
+    var lastMsg = document.getElementById('chatMessages').lastElementChild;
+    if (lastMsg) {
+      var bubble = lastMsg.querySelector('.msg-bubble');
+      if (bubble) bubble.innerHTML = '✓ Preset bijgewerkt op basis van je wens.';
+    }
+
+    document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
   })
   .catch(function(e) {
-    var el = document.getElementById(tid);
-    if (el) el.querySelector('.msg-bubble').textContent = 'Fout: ' + e.message;
-  })
-  .finally(function() {
-    var c = document.getElementById('chatMessages');
-    c.scrollTop = c.scrollHeight;
+    document.getElementById('outputContent').innerHTML =
+      '<p style="color:var(--accent2)">Fout: ' + e.message + '</p>';
+    var lastMsg = document.getElementById('chatMessages').lastElementChild;
+    if (lastMsg) {
+      var bubble = lastMsg.querySelector('.msg-bubble');
+      if (bubble) bubble.textContent = 'Fout: ' + e.message;
+    }
   });
 }
 
