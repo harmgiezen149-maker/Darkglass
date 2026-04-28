@@ -334,7 +334,8 @@ function loadPreset(id) {
     p.artist.toUpperCase() + ' — ' + p.song.toUpperCase() + ' · ' + p.bass.toUpperCase();
   document.getElementById('outputContent').innerHTML = currentPresetData.html;
   document.getElementById('outputPanel').classList.remove('hidden');
-  document.getElementById('chatPanel').classList.add('hidden');
+  document.getElementById('chatPanel').classList.remove('hidden');
+  document.getElementById('chatMessages').innerHTML = '';
   chatHistory = [];
   chatContext = p.artist + ' - ' + p.song + ' | ' + p.bass;
 
