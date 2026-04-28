@@ -27,6 +27,7 @@
 
   <main>
 
+    <!-- 01 SETUP -->
     <section class="panel" id="setupPanel">
       <div class="panel-label">01 / SETUP</div>
 
@@ -56,7 +57,7 @@
 
       <div class="field-group">
         <label class="field-label" for="extraInput">EXTRA WENSEN <span class="field-label-opt">(optioneel)</span></label>
-        <textarea id="extraInput" class="text-input text-area" rows="3" placeholder="bijv: meer distortion dan het origineel, ik weet dat er parallelle processing nodig is, minder attack op de compressor, meer ruimte in de lows..."></textarea>
+        <textarea id="extraInput" class="text-input text-area" rows="3" placeholder="bijv: meer distortion dan het origineel, parallelle processing nodig, minder attack op de compressor..."></textarea>
       </div>
 
       <button class="analyze-btn" id="analyzeBtn" onclick="analyzeTone()">
@@ -65,27 +66,32 @@
       </button>
     </section>
 
+    <!-- 02 PRESET OUTPUT -->
     <section class="panel hidden" id="outputPanel">
       <div class="panel-label">02 / ANAGRAM PRESET</div>
       <div class="output-meta" id="outputMeta"></div>
-      <button class="save-btn" id="saveBtn" onclick="savePreset()">
-        <span>&#9632;</span> OPSLAAN
-      </button>
       <div class="output-content" id="outputContent"></div>
     </section>
 
-    <section class="panel hidden" id="savedPanel">
-      <div class="panel-label">04 / OPGESLAGEN PRESETS</div>
-      <div class="saved-list" id="savedList"></div>
-    </section>
-
+    <!-- 03 FINE-TUNE CHAT + OPSLAAN -->
     <section class="panel hidden" id="chatPanel">
       <div class="panel-label">03 / FINE-TUNE CHAT</div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-row">
-        <input type="text" id="chatInput" class="text-input" placeholder="Stel een vraag over de sound..." onkeydown="if(event.key==='Enter') sendChat()" />
+        <input type="text" id="chatInput" class="text-input" placeholder="Stel een vraag of geef een aanpassing..." onkeydown="if(event.key==='Enter') sendChat()" />
         <button class="send-btn" onclick="sendChat()">&#9658;</button>
       </div>
+      <div class="save-row">
+        <button class="save-btn" id="saveBtn" onclick="savePreset()">
+          <span>&#9632;</span> PRESET OPSLAAN
+        </button>
+      </div>
+    </section>
+
+    <!-- 04 OPGESLAGEN PRESETS -->
+    <section class="panel hidden" id="savedPanel">
+      <div class="panel-label">04 / OPGESLAGEN PRESETS</div>
+      <div class="saved-list" id="savedList"></div>
     </section>
 
   </main>
