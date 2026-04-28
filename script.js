@@ -4,7 +4,7 @@
 var selectedBass = 'spector';
 var chatHistory = [];
 var chatContext = '';
-var currentPresetData = null; // huidige preset voor opslaan
+var currentPresetData = null;
 
 // =====================
 // BASS SELECTIE
@@ -191,11 +191,10 @@ function analyzeTone() {
       artist: artist,
       song: song,
       bass: bassLabel,
-      content: d.content,
-      html: toHtml(d.content)
+      content: d.content
     };
 
-    document.getElementById('outputContent').innerHTML = currentPresetData.html;
+    document.getElementById('outputContent').innerHTML = toHtml(d.content);
     document.getElementById('chatPanel').classList.remove('hidden');
     document.getElementById('chatMessages').innerHTML = '';
     addMsg('assistant', 'Preset klaar! Heb je vragen of wil je de sound verder verfijnen?');
@@ -243,7 +242,6 @@ function sendChat() {
 
     if (currentPresetData) {
       currentPresetData.content = d.content;
-      currentPresetData.html = toHtml(d.content);
     }
 
     document.getElementById('outputContent').innerHTML = toHtml(d.content);
@@ -287,13 +285,26 @@ function savePreset() {
   var id = Date.now().toString();
   var datum = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  // Check of er al een preset bestaat met dezelfde artiest/song
+  var bestaatAl = Object.values(presets).some(function(p) {
+    return p.artist === currentPresetData.artist && p.song === currentPresetData.song;
+  });
+
+  var label = '';
+  if (bestaatAl) {
+    label = window.prompt('Er bestaat al een preset voor dit nummer.\nGeef 2-3 steekwoorden voor deze versie\n(bijv: meer distortion, parallel, minder comp):', '');
+    if (label === null) return;
+    label = label.trim();
+  }
+
   presets[id] = {
     id: id,
     artist: currentPresetData.artist,
     song: currentPresetData.song,
     bass: currentPresetData.bass,
     content: currentPresetData.content,
-    datum: datum
+    datum: datum,
+    label: label
   };
 
   localStorage.setItem('dg_presets', JSON.stringify(presets));
@@ -304,7 +315,7 @@ function savePreset() {
   btn.style.color = 'var(--accent)';
   btn.style.borderColor = 'var(--accent)';
   setTimeout(function() {
-    btn.innerHTML = '<span>&#9632;</span> OPSLAAN';
+    btn.innerHTML = '<span>&#9632;</span> PRESET OPSLAAN';
     btn.style.color = '';
     btn.style.borderColor = '';
   }, 2000);
@@ -326,23 +337,24 @@ function loadPreset(id) {
     artist: p.artist,
     song: p.song,
     bass: p.bass,
-    content: p.content,
-    html: toHtml(p.content)
+    content: p.content
   };
 
   document.getElementById('outputMeta').textContent =
     p.artist.toUpperCase() + ' — ' + p.song.toUpperCase() + ' · ' + p.bass.toUpperCase();
-  document.getElementById('outputContent').innerHTML = currentPresetData.html;
+  document.getElementById('outputContent').innerHTML = toHtml(p.content);
   document.getElementById('outputPanel').classList.remove('hidden');
   document.getElementById('chatPanel').classList.remove('hidden');
   document.getElementById('chatMessages').innerHTML = '';
   chatHistory = [];
   chatContext = p.artist + ' - ' + p.song + ' | ' + p.bass;
 
+  addMsg('assistant', 'Preset geladen! Wil je nog aanpassingen maken?');
   document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
 }
 
 function deletePreset(id) {
+  if (!window.confirm('Preset verwijderen?')) return;
   var presets = loadAllPresets();
   delete presets[id];
   localStorage.setItem('dg_presets', JSON.stringify(presets));
@@ -363,11 +375,13 @@ function renderSavedPanel() {
   panel.classList.remove('hidden');
   list.innerHTML = keys.map(function(id) {
     var p = presets[id];
+    var subtitle = p.bass.split('(')[0].trim() + ' · ' + p.datum;
+    if (p.label) subtitle += ' · ' + p.label;
     return '<div class="saved-item">'
       + '<div class="saved-item-header">'
       + '<div>'
       + '<div class="saved-item-title">' + p.artist + ' — ' + p.song + '</div>'
-      + '<div class="saved-item-date">' + p.bass.split('(')[0].trim() + ' · ' + p.datum + '</div>'
+      + '<div class="saved-item-date">' + subtitle + '</div>'
       + '</div>'
       + '<div class="saved-item-actions">'
       + '<button class="saved-action-btn btn-load" onclick="loadPreset(\'' + id + '\')">LADEN</button>'
