@@ -528,6 +528,12 @@ footer {
   letter-spacing: 0.1em;
 }
 
+.save-row {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
 @media (max-width: 580px) {
   main { padding: 1rem; }
   header { padding: 1rem; }
