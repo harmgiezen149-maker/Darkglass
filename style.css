@@ -85,7 +85,7 @@ main {
 }
 .field-label-opt {
   font-size: 0.55rem;
-  color: var(--text-dimmer);
+  color: #ffffff;
   letter-spacing: 0.1em;
   font-weight: 400;
   text-transform: none;
