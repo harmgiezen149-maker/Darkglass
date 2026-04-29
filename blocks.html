@@ -134,9 +134,19 @@ var blocksData = [];
 fetch('/api/blocks')
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    blocksData = d.blocks || [];
+    var blocks = d.blocks || [];
+    if (typeof blocks === 'string') {
+      try { blocks = JSON.parse(blocks); } catch(e) {}
+    }
+    if (typeof blocks === 'string') {
+      try { blocks = JSON.parse(blocks); } catch(e) {}
+    }
+    blocksData = Array.isArray(blocks) ? blocks : [];
     renderAll();
   })
+  .catch(function(e) {
+    document.getElementById('blocksContainer').innerHTML = '<div class="loading-msg" style="color:var(--accent2)">Fout bij laden: ' + e.message + '</div>';
+  });
   .catch(function(e) {
     document.getElementById('blocksContainer').innerHTML = '<div class="loading-msg" style="color:var(--accent2)">Fout bij laden: ' + e.message + '</div>';
   });
@@ -176,7 +186,9 @@ function resetDefaults() {
   fetch('/api/blocks?reset=1')
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      blocksData = d.blocks || [];
+      var blocks = d.blocks || [];
+      if (typeof blocks === 'string') { try { blocks = JSON.parse(blocks); } catch(e) {} }
+      blocksData = Array.isArray(blocks) ? blocks : [];
       renderAll();
       showStatus('Standaardinstellingen hersteld.', 'ok');
     });
