@@ -143,7 +143,7 @@ var SYSTEM_ANALYZE = 'Je bent een expert in bas-gitaar sound design voor de Dark
   + 'INSTELLINGEN:\n'
   + '- Parameternaam: waarde\n'
   + 'UITLEG: één zin waarom\n\n'
-  + '## FINE-TUNE TIPS\n[3 concrete tips]\n\n'
+  + '## FINE-TUNE TIPS\n[3 concrete tips. Als stemming relevant is, vermeld dan ALLEEN de basstemming (bijv. Drop D, Eb standaard, C# standaard) en niet de gitaarstemming. Let hierbij op welke bas er gekozen is, de spector is standaard in BEADG en de Precision is standaard in EADG]\n\n'
   + 'Antwoord in het Nederlands.';
 
 // =====================
