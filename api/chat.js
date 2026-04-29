@@ -24,16 +24,26 @@ module.exports = async function handler(req, res) {
       });
       const d = await r.json();
       if (d.result) {
-        const blocks = JSON.parse(d.result);
-        blockPrompt = '\n\n=== BESCHIKBARE ANAGRAM BLOKKEN ===\n';
-        blocks.forEach(function(sectie) {
-          blockPrompt += '\n--- ' + sectie.sectie + ' ---\n';
-          (sectie.blokken || []).forEach(function(blok) {
-            blockPrompt += blok.naam + ' (' + blok.basis + ')\n';
-            blockPrompt += '  Parameters: ' + blok.parameters + '\n';
+        // Verwerk zowel enkel als dubbel gecodeerde JSON
+        let blocks = d.result;
+        if (typeof blocks === 'string') {
+          blocks = JSON.parse(blocks);
+        }
+        if (typeof blocks === 'string') {
+          blocks = JSON.parse(blocks); // dubbel gecodeerd
+        }
+
+        if (Array.isArray(blocks) && blocks.length > 0) {
+          blockPrompt = '\n\n=== BESCHIKBARE ANAGRAM BLOKKEN ===\n';
+          blocks.forEach(function(sectie) {
+            blockPrompt += '\n--- ' + sectie.sectie + ' ---\n';
+            (sectie.blokken || []).forEach(function(blok) {
+              blockPrompt += blok.naam + ' (' + blok.basis + ')\n';
+              blockPrompt += '  Parameters: ' + blok.parameters + '\n';
+            });
           });
-        });
-        blockPrompt += '\nGebruik ALLEEN bovenstaande bloknamen en parameters. Geef GEEN parameters op die niet vermeld zijn.';
+          blockPrompt += '\nGebruik ALLEEN bovenstaande bloknamen en parameters. Geef GEEN parameters op die niet vermeld zijn.';
+        }
       }
     }
   } catch(e) {
