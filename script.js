@@ -16,13 +16,8 @@ document.querySelectorAll('.bass-btn').forEach(function(btn) {
     selectedBass = btn.dataset.bass;
   });
 });
-
-document.getElementById('artistInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') document.getElementById('songInput').focus();
-});
-document.getElementById('songInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') analyzeTone();
-});
+document.getElementById('artistInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('songInput').focus(); });
+document.getElementById('songInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') analyzeTone(); });
 
 // =====================
 // SYSTEEM PROMPT
@@ -91,16 +86,12 @@ function analyzeTone() {
   .then(function(d) {
     if (d.error) throw new Error(d.error);
     chatHistory.push({ role: 'assistant', content: d.content });
-
-    var correctedArtist = artist;
-    var correctedSong = song;
-    var lines = d.content.split('\n');
-    for (var i = 0; i < lines.length; i++) {
-      var l = lines[i].trim();
+    var correctedArtist = artist, correctedSong = song;
+    d.content.split('\n').forEach(function(l) {
+      l = l.trim();
       if (l.startsWith('ARTIEST:')) correctedArtist = l.replace('ARTIEST:', '').trim();
       if (l.startsWith('SONG:')) correctedSong = l.replace('SONG:', '').trim();
-    }
-
+    });
     currentPresetData = { artist: correctedArtist, song: correctedSong, bass: bassLabel, content: d.content };
     document.getElementById('outputMeta').textContent =
       correctedArtist.toUpperCase() + ' \u2014 ' + correctedSong.toUpperCase() + ' \u00b7 ' + bassLabel.toUpperCase();
@@ -111,8 +102,7 @@ function analyzeTone() {
     document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
   })
   .catch(function(e) {
-    document.getElementById('outputContent').innerHTML =
-      '<p style="color:var(--accent2)">Fout: ' + e.message + '</p>';
+    document.getElementById('outputContent').innerHTML = '<p style="color:var(--accent2)">Fout: ' + e.message + '</p>';
   })
   .finally(function() {
     btn.disabled = false;
@@ -128,18 +118,13 @@ function sendChat() {
   var msg = input.value.trim();
   if (!msg) return;
   input.value = '';
-
   addMsg('user', msg);
   chatHistory.push({ role: 'user', content: msg });
   addMsg('assistant', 'Preset wordt bijgewerkt...');
-
   document.getElementById('outputContent').innerHTML =
     '<div class="loading"><div class="vu"><span></span><span></span><span></span><span></span><span></span><span></span></div><p>Preset bijwerken...</p></div>';
   document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
-
-  var systemChat = SYSTEM_ANALYZE
-    + '\n\nDe gebruiker heeft een aanvullende wens. Genereer een VOLLEDIG NIEUW bijgewerkt preset-plan in exact hetzelfde formaat. Verwerk de aanpassing volledig. Geef alleen het preset-plan.';
-
+  var systemChat = SYSTEM_ANALYZE + '\n\nDe gebruiker heeft een aanvullende wens. Genereer een VOLLEDIG NIEUW bijgewerkt preset-plan in exact hetzelfde formaat. Verwerk de aanpassing volledig. Geef alleen het preset-plan.';
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -152,15 +137,11 @@ function sendChat() {
     if (currentPresetData) currentPresetData.content = d.content;
     document.getElementById('outputContent').innerHTML = toHtml(d.content);
     var lastMsg = document.getElementById('chatMessages').lastElementChild;
-    if (lastMsg) {
-      var bubble = lastMsg.querySelector('.msg-bubble');
-      if (bubble) bubble.innerHTML = '\u2713 Preset bijgewerkt op basis van je wens.';
-    }
+    if (lastMsg) { var b = lastMsg.querySelector('.msg-bubble'); if (b) b.innerHTML = '\u2713 Preset bijgewerkt.'; }
     document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
   })
   .catch(function(e) {
-    document.getElementById('outputContent').innerHTML =
-      '<p style="color:var(--accent2)">Fout: ' + e.message + '</p>';
+    document.getElementById('outputContent').innerHTML = '<p style="color:var(--accent2)">Fout: ' + e.message + '</p>';
     var lastMsg = document.getElementById('chatMessages').lastElementChild;
     if (lastMsg) { var b = lastMsg.querySelector('.msg-bubble'); if (b) b.textContent = 'Fout: ' + e.message; }
   });
@@ -188,24 +169,18 @@ function savePreset() {
   var datum = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
   var bestaatAl = false;
   for (var key in presetsCache) {
-    if (presetsCache[key].artist === currentPresetData.artist && presetsCache[key].song === currentPresetData.song) {
-      bestaatAl = true; break;
-    }
+    if (presetsCache[key].artist === currentPresetData.artist && presetsCache[key].song === currentPresetData.song) { bestaatAl = true; break; }
   }
   var label = '';
   if (bestaatAl) {
-    var input = window.prompt('Er bestaat al een preset voor dit nummer.\nGeef 2-3 steekwoorden voor deze versie:', '');
-    if (input === null) return;
-    label = input.trim();
+    var inp = window.prompt('Er bestaat al een preset voor dit nummer.\nGeef 2-3 steekwoorden voor deze versie:', '');
+    if (inp === null) return;
+    label = inp.trim();
   }
   var preset = { id: id, artist: currentPresetData.artist, song: currentPresetData.song, bass: currentPresetData.bass, content: currentPresetData.content, datum: datum, label: label };
   var btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = 'OPSLAAN...';
-  fetch('/api/presets', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ preset: preset })
-  })
+  fetch('/api/presets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preset: preset }) })
   .then(function(r) { return r.json(); })
   .then(function(d) {
     if (d.error) throw new Error(d.error);
@@ -277,39 +252,43 @@ function checkBSnaar(tekst) {
     var r = regels[i].trim();
     if (r.startsWith('b_snaar_vereist:')) return r.indexOf('ja') !== -1;
   }
-  var keywords = ['lage b-snaar','lage b snaar','b-snaar nodig','b-snaar vereist','vijfde snaar','5e snaar','low b string','low-b','onder de e-snaar'];
-  for (var j = 0; j < keywords.length; j++) { if (t.indexOf(keywords[j]) !== -1) return true; }
+  var kw = ['lage b-snaar','lage b snaar','b-snaar nodig','b-snaar vereist','vijfde snaar','5e snaar','low b string','low-b','onder de e-snaar'];
+  for (var j = 0; j < kw.length; j++) { if (t.indexOf(kw[j]) !== -1) return true; }
   return false;
 }
 
 // =====================
-// VISUELE KNOB / TOGGLE / SELECTOR
+// KNOB HELPER
+// 0 = 6 uur (180deg), 10 = 5 uur (150deg), sweep = 330deg
 // =====================
 function makeKnob(label, value, unit, pct) {
-  // pct = 0.0 to 1.0 position on arc
   pct = Math.max(0, Math.min(1, pct));
   var cx = 30, cy = 30, r = 22;
-  var startDeg = 135, totalDeg = 270;
+  var startDeg = 180; // 6 o'clock
+  var totalDeg = 330; // sweeps clockwise to 5 o'clock
+
   function pt(deg) {
     var rad = (deg - 90) * Math.PI / 180;
-    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+    return { x: parseFloat((cx + r * Math.cos(rad)).toFixed(2)), y: parseFloat((cy + r * Math.sin(rad)).toFixed(2)) };
   }
+
   var s = pt(startDeg);
-  var bg = pt(startDeg + totalDeg);
-  var filled = pct > 0;
+  var bgEnd = pt(startDeg + totalDeg); // 5 o'clock
   var endDeg = startDeg + pct * totalDeg;
   var e = pt(endDeg);
   var largeArc = (pct * totalDeg) > 180 ? 1 : 0;
 
-  var bgPath = 'M ' + s.x.toFixed(2) + ' ' + s.y.toFixed(2) + ' A ' + r + ' ' + r + ' 0 1 1 ' + bg.x.toFixed(2) + ' ' + bg.y.toFixed(2);
-  var fillPath = filled ? ('M ' + s.x.toFixed(2) + ' ' + s.y.toFixed(2) + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + e.x.toFixed(2) + ' ' + e.y.toFixed(2)) : '';
+  // Background track: always full 330deg arc (large arc)
+  var bgPath = 'M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 1 1 ' + bgEnd.x + ' ' + bgEnd.y;
+  // Value fill
+  var fillPath = pct > 0.001 ? ('M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + e.x + ' ' + e.y) : '';
 
-  var display = value + (unit ? (unit === '%' ? '%' : ' ' + unit) : '');
+  var display = value + (unit === '%' ? '%' : (unit ? ' ' + unit : ''));
 
   return '<div class="knob-wrap">'
     + '<svg class="knob-svg" width="60" height="60" viewBox="0 0 60 60">'
     + '<path class="knob-track" d="' + bgPath + '"/>'
-    + (filled ? '<path class="knob-fill" d="' + fillPath + '"/>' : '')
+    + (fillPath ? '<path class="knob-fill" d="' + fillPath + '"/>' : '')
     + '<text class="knob-center-val" x="30" y="31">' + display + '</text>'
     + '</svg>'
     + '<div class="knob-label">' + label + '</div>'
@@ -318,8 +297,7 @@ function makeKnob(label, value, unit, pct) {
 
 function makeToggle(label, isOn) {
   return '<div class="toggle-wrap">'
-    + '<div class="toggle-track ' + (isOn ? 'on' : 'off') + '">'
-    + '<div class="toggle-thumb"></div></div>'
+    + '<div class="toggle-track ' + (isOn ? 'on' : 'off') + '"><div class="toggle-thumb"></div></div>'
     + '<div class="toggle-val">' + (isOn ? 'ON' : 'OFF') + '</div>'
     + '<div class="toggle-label">' + label + '</div>'
     + '</div>';
@@ -327,76 +305,57 @@ function makeToggle(label, isOn) {
 
 function makeSelector(label, options, activeVal) {
   var opts = options.map(function(o) {
-    var isActive = o.trim().toLowerCase() === activeVal.trim().toLowerCase();
-    return '<span class="selector-opt' + (isActive ? ' active' : '') + '">' + o.trim() + '</span>';
+    var active = o.trim().toLowerCase() === activeVal.trim().toLowerCase();
+    return '<span class="selector-opt' + (active ? ' active' : '') + '">' + o.trim() + '</span>';
   }).join('');
-  return '<div class="selector-wrap">'
-    + '<div class="selector-label">' + label + '</div>'
-    + '<div class="selector-opts">' + opts + '</div>'
-    + '</div>';
+  return '<div class="selector-wrap"><div class="selector-label">' + label + '</div><div class="selector-opts">' + opts + '</div></div>';
 }
 
 function makeTextBadge(label, value) {
-  return '<div class="textbadge-wrap">'
-    + '<div class="textbadge-label">' + label + '</div>'
-    + '<div class="textbadge-val">' + value + '</div>'
-    + '</div>';
+  return '<div class="textbadge-wrap"><div class="textbadge-label">' + label + '</div><div class="textbadge-val">' + value + '</div></div>';
 }
 
 function renderSettingVisual(param, value) {
-  var p = param.trim();
-  var v = value.trim();
+  var p = param.trim(), v = value.trim();
 
-  // ON / OFF toggle
+  // Toggle
   if (v.toLowerCase() === 'on') return makeToggle(p, true);
   if (v.toLowerCase() === 'off') return makeToggle(p, false);
 
-  // Percentage (bijv. 75%)
+  // Percentage
   var pctM = v.match(/^(\d+(?:\.\d+)?)\s*%$/);
-  if (pctM) {
-    var pv = parseFloat(pctM[1]);
-    return makeKnob(p, Math.round(pv), '%', pv / 100);
-  }
+  if (pctM) { var pv = parseFloat(pctM[1]); return makeKnob(p, Math.round(pv), '%', pv / 100); }
 
-  // 0-10 schaal zonder eenheid
-  var num0_10 = v.match(/^(\d+(?:\.\d+)?)$/);
-  if (num0_10) {
-    var nv = parseFloat(num0_10[1]);
-    return makeKnob(p, nv % 1 === 0 ? Math.round(nv) : nv, '', nv / 10);
-  }
-
-  // Getal met eenheid: ms, Hz, kHz, dB, s, cents
+  // Getal met eenheid (ms, Hz, kHz, dB, s, cents)
   var unitM = v.match(/^(-?\d+(?:\.\d+)?)\s*(ms|Hz|kHz|dB|s|cents)$/i);
   if (unitM) {
-    var uv = parseFloat(unitM[1]);
-    var unit = unitM[2];
-    var pctVal = 0.5; // default midpoint als we range niet weten
-    // Bekende ranges
+    var uv = parseFloat(unitM[1]), unit = unitM[2];
+    var pctVal = 0.5;
     if (unit === 'ms') pctVal = Math.min(1, uv / 2000);
-    else if (unit === 'Hz') pctVal = Math.min(1, uv / 10000);
+    else if (unit.toLowerCase() === 'hz') pctVal = Math.min(1, uv / 10000);
     else if (unit === 'kHz') pctVal = Math.min(1, uv / 20);
     else if (unit === 'dB') pctVal = Math.min(1, Math.max(0, (uv + 30) / 60));
     else if (unit === 's') pctVal = Math.min(1, uv / 20);
-    else if (unit === 'cents') pctVal = Math.min(1, Math.max(0, (uv + 50) / 100));
+    else if (unit === 'cents') pctVal = Math.min(1, Math.max(0, (uv + 100) / 200));
     return makeKnob(p, uv, unit, pctVal);
   }
 
-  // Slash-gescheiden opties (bijv. Alpha/Omega, 4:1/8:1/12:1)
+  // 0-10 getal zonder eenheid
+  var num = v.match(/^(\d+(?:\.\d+)?)$/);
+  if (num) { var nv = parseFloat(num[1]); return makeKnob(p, nv % 1 === 0 ? Math.round(nv) : nv, '', Math.min(1, nv / 10)); }
+
+  // Slash-opties
   if (v.indexOf('/') !== -1) {
     var parts = v.split('/').map(function(x) { return x.trim(); });
-    // Als het maar 2 opties zijn die op on/off lijken
-    if (parts.length === 2 && parts[0].length < 12 && parts[1].length < 12) {
+    if (parts.length <= 5 && parts.every(function(x) { return x.length < 16; })) {
       return makeSelector(p, parts, parts[0]);
     }
     return makeTextBadge(p, v);
   }
 
-  // Ratio zoals 4:1
-  if (v.match(/^\d+:\d+$/) || v === 'All' || v === 'Auto') {
-    return makeSelector(p, [v], v);
-  }
+  // Ratio / All / Auto
+  if (v.match(/^\d+:\d+$/) || v === 'All' || v === 'Auto') return makeSelector(p, [v], v);
 
-  // Alles anders: text badge
   return makeTextBadge(p, v);
 }
 
@@ -404,8 +363,8 @@ function renderSettingVisual(param, value) {
 // SIGNAALCHAIN RENDERER
 // =====================
 function renderChainRegel(chainStr) {
-  var normalized = chainStr.replace(/\u2192/g, '>').replace(/->/g, '>');
-  var blokken = normalized.split('>').map(function(b) { return b.trim(); }).filter(Boolean);
+  var norm = chainStr.replace(/\u2192/g, '>').replace(/->/g, '>');
+  var blokken = norm.split('>').map(function(b) { return b.trim(); }).filter(Boolean);
   var html = '';
   blokken.forEach(function(b, idx) {
     html += '<span class="chain-block">' + b + '</span>';
@@ -433,24 +392,20 @@ function toHtml(t) {
 
   function sluitBlok() {
     if (!inBlok) return;
-
-    // Bouw visuele controls
-    var visualsHtml = '<div class="visual-controls">';
+    var visuals = '<div class="visual-controls">';
     blokSettings.forEach(function(s) {
       var idx = s.indexOf(':');
       if (idx === -1) return;
       var param = s.substring(0, idx).replace(/^-\s*/, '').trim();
       var waarde = s.substring(idx + 1).trim();
-      visualsHtml += renderSettingVisual(param, waarde);
+      visuals += renderSettingVisual(param, waarde);
     });
-    visualsHtml += '</div>';
+    visuals += '</div>';
 
     html += '<div class="blok-kaart">'
-      + '<div class="blok-titel">'
-      + '<span class="blok-nummer">' + blokTeller + '</span>'
-      + '<span class="blok-naam">' + blokNaam + '</span>'
-      + '</div><div class="blok-body">'
-      + (blokSettings.length ? visualsHtml : '')
+      + '<div class="blok-titel"><span class="blok-nummer">' + blokTeller + '</span><span class="blok-naam">' + blokNaam + '</span></div>'
+      + '<div class="blok-body">'
+      + (blokSettings.length ? visuals : '')
       + (blokUitleg ? '<div class="blok-uitleg">' + blokUitleg + '</div>' : '')
       + '</div></div>';
 
@@ -463,11 +418,7 @@ function toHtml(t) {
     chainHtml = ''; inChain = false;
   }
 
-  function sluitTips() {
-    if (!inTips) return;
-    html += '</div>';
-    inTips = false;
-  }
+  function sluitTips() { if (!inTips) return; html += '</div>'; inTips = false; }
 
   for (var i = 0; i < regels.length; i++) {
     var r = regels[i].trim();
@@ -525,10 +476,7 @@ function toHtml(t) {
       continue;
     }
 
-    if (inTips) {
-      html += '<p style="margin-bottom:0.5rem">' + r.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + '</p>';
-      continue;
-    }
+    if (inTips) { html += '<p style="margin-bottom:0.5rem">' + r.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + '</p>'; continue; }
 
     html += '<p>' + r.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + '</p>';
   }
@@ -538,9 +486,5 @@ function toHtml(t) {
 }
 
 function toHtmlSimple(t) {
-  return t
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
+  return t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/`(.+?)`/g, '<code>$1</code>').replace(/\n/g, '<br>');
 }
