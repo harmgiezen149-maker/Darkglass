@@ -327,7 +327,7 @@ function renderSettingVisual(param, value) {
   if (pctM) { var pv = parseFloat(pctM[1]); return makeKnob(p, Math.round(pv), '%', pv / 100); }
 
   // Getal met eenheid (ms, Hz, kHz, dB, s, cents)
-  var unitM = v.match(/^(-?\d+(?:\.\d+)?)\s*(ms|Hz|kHz|dB|s|cents)$/i);
+  var unitM = v.match(/^([+-]?\d+(?:\.\d+)?)\s*(ms|Hz|kHz|dB|s|cents)$/i);
   if (unitM) {
     var uv = parseFloat(unitM[1]), unit = unitM[2];
     var pctVal = 0.5;
