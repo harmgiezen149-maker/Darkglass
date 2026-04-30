@@ -80,7 +80,8 @@
     </div>
     <div style="display:flex;gap:0.75rem">
       <button class="btn btn-secondary" onclick="resetDefaults()">HERSTEL STANDAARD</button>
-      <button class="btn btn-primary" id="saveBtn" onclick="saveBlocks()">OPSLAAN</button>
+      <button class="btn btn-secondary" style="border-color:var(--accent);color:var(--accent)" onclick="saveAsDefault()">DEFINITIEF OPSLAAN</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveBlocks(false)">OPSLAAN</button>
     </div>
   </div>
 
@@ -127,7 +128,7 @@ function loadBlocks(url) {
 // =====================
 // OPSLAAN
 // =====================
-function saveBlocks() {
+function saveBlocks(setDefault) {
   blocksData = readFromDom();
   var btn = document.getElementById('saveBtn');
   btn.disabled = true;
@@ -135,23 +136,40 @@ function saveBlocks() {
   fetch('/api/blocks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ blocks: blocksData })
+    body: JSON.stringify({ blocks: blocksData, setDefault: setDefault === true })
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
     if (d.error) throw new Error(d.error);
-    showStatus('Blokken opgeslagen! De app gebruikt deze instellingen direct.', 'ok');
+    var msg = setDefault
+      ? 'Blokken opgeslagen als nieuwe standaard! Herstel Standaard keert hiernaar terug.'
+      : 'Blokken opgeslagen! De app gebruikt deze instellingen direct.';
+    showStatus(msg, 'ok');
   })
   .catch(function(e) { showStatus('Opslaan mislukt: ' + e.message, 'err'); })
   .finally(function() { btn.disabled = false; btn.textContent = 'OPSLAAN'; });
+}
+
+function saveAsDefault() {
+  if (!confirm('Huidige blokken opslaan als nieuwe standaard?\nHerstel Standaard keert voortaan hierop terug.')) return;
+  saveBlocks(true);
 }
 
 // =====================
 // HERSTEL
 // =====================
 function resetDefaults() {
-  if (!confirm('Alle blokken terugzetten naar standaard?')) return;
-  loadBlocks('/api/blocks?reset=1');
+  if (!confirm('Blokken herstellen naar standaard?\n(Dit is je eigen opgeslagen standaard als die bestaat, anders de oorspronkelijke lijst.)')) return;
+  fetch('/api/blocks?reset=1')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      blocksData = parseBlocks(d.blocks);
+      renderAll();
+      var msg = d.source === 'custom-default'
+        ? 'Hersteld naar jouw opgeslagen standaard.'
+        : 'Hersteld naar de originele standaard (geen eigen standaard gevonden).';
+      showStatus(msg, 'ok');
+    });
 }
 
 // =====================
