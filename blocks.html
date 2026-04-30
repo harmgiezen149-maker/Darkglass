@@ -39,9 +39,9 @@
     .status-bar { padding: 0.75rem 1rem; border-radius: 4px; font-size: 0.75rem; letter-spacing: 0.1em; display: none; }
     .status-bar.ok { background: rgba(0,229,176,0.1); border: 1px solid var(--accent); color: var(--accent); display: block; }
     .status-bar.err { background: rgba(255,77,109,0.1); border: 1px solid var(--accent2); color: var(--accent2); display: block; }
-    .sectie-block { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+    .sectie-block { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 0; }
     .sectie-header { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1.25rem; background: rgba(124,92,252,0.06); border-bottom: 1px solid var(--border); }
-    .sectie-naam-input { background: transparent; border: none; font-family: var(--font-a); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.2em; color: var(--accent); outline: none; width: 200px; }
+    .sectie-naam-input { background: transparent; border: none; font-family: var(--font-a); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.2em; color: var(--accent); outline: none; width: 220px; }
     .sectie-naam-input:focus { border-bottom: 1px solid var(--accent); }
     .sectie-body { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.875rem; }
     .blok-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 1rem; display: flex; flex-direction: column; gap: 0.625rem; }
@@ -94,21 +94,23 @@
 <script>
 var blocksData = [];
 
+// =====================
+// PARSE HELPERS
+// =====================
 function parseBlocks(raw) {
   var data = raw;
-  // Verwerk dubbel gecodeerde JSON
   if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) {} }
   if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) {} }
   return Array.isArray(data) ? data : [];
 }
 
+// =====================
+// LADEN
+// =====================
 function loadBlocks(url) {
   document.getElementById('blocksContainer').innerHTML = '<div class="loading-msg">Blokken laden...</div>';
   fetch(url || '/api/blocks')
-    .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function(d) {
       blocksData = parseBlocks(d.blocks);
       if (blocksData.length === 0) {
@@ -122,6 +124,9 @@ function loadBlocks(url) {
     });
 }
 
+// =====================
+// OPSLAAN
+// =====================
 function saveBlocks() {
   blocksData = readFromDom();
   var btn = document.getElementById('saveBtn');
@@ -141,22 +146,32 @@ function saveBlocks() {
   .finally(function() { btn.disabled = false; btn.textContent = 'OPSLAAN'; });
 }
 
+// =====================
+// HERSTEL
+// =====================
 function resetDefaults() {
   if (!confirm('Alle blokken terugzetten naar standaard?')) return;
   loadBlocks('/api/blocks?reset=1');
-  showStatus('Standaardinstellingen hersteld.', 'ok');
 }
 
+// =====================
+// DOM LEZEN
+// =====================
 function readFromDom() {
   var secties = [];
-  document.querySelectorAll('.sectie-block').forEach(function(sectieEl) {
+  var sectieEls = document.querySelectorAll('.sectie-block');
+  sectieEls.forEach(function(sectieEl) {
     var sectieNaam = sectieEl.querySelector('.sectie-naam-input').value.trim();
     var blokken = [];
-    sectieEl.querySelectorAll('.blok-item').forEach(function(blokEl) {
+    var blokEls = sectieEl.querySelectorAll('.blok-item');
+    blokEls.forEach(function(blokEl) {
+      var naamEl   = blokEl.querySelector('[data-veld="naam"]');
+      var basisEl  = blokEl.querySelector('[data-veld="basis"]');
+      var paramsEl = blokEl.querySelector('[data-veld="params"]');
       blokken.push({
-        naam: blokEl.querySelector('.blok-naam').value.trim(),
-        basis: blokEl.querySelector('.blok-basis').value.trim(),
-        parameters: blokEl.querySelector('.blok-params').value.trim()
+        naam:       naamEl   ? naamEl.value.trim()   : '',
+        basis:      basisEl  ? basisEl.value.trim()  : '',
+        parameters: paramsEl ? paramsEl.value.trim() : ''
       });
     });
     if (sectieNaam) secties.push({ sectie: sectieNaam, blokken: blokken });
@@ -164,62 +179,138 @@ function readFromDom() {
   return secties;
 }
 
+// =====================
+// RENDEREN
+// =====================
 function renderAll() {
   var container = document.getElementById('blocksContainer');
   container.innerHTML = '';
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'display:flex;flex-direction:column;gap:1rem;';
   blocksData.forEach(function(sectie, si) {
-    container.appendChild(renderSectie(sectie, si));
+    wrapper.appendChild(renderSectie(sectie, si));
   });
+  container.appendChild(wrapper);
 }
 
 function renderSectie(sectie, si) {
   var div = document.createElement('div');
   div.className = 'sectie-block';
-  var header = '<div class="sectie-header">'
-    + '<input class="sectie-naam-input" value="' + esc(sectie.sectie) + '" placeholder="SECTIENAAM" />'
-    + '<div style="display:flex;gap:0.5rem">'
-    + '<button class="btn btn-secondary" style="font-size:0.6rem;padding:0.3rem 0.6rem" onclick="addBlok(this)">+ BLOK</button>'
-    + '<button class="btn btn-danger" onclick="deleteSectie(this)">&times; SECTIE</button>'
-    + '</div></div>';
-  var body = '<div class="sectie-body">';
-  (sectie.blokken || []).forEach(function(blok) { body += renderBlok(blok); });
-  body += '</div>';
-  div.innerHTML = header + body;
+
+  // Header
+  var header = document.createElement('div');
+  header.className = 'sectie-header';
+
+  var input = document.createElement('input');
+  input.className = 'sectie-naam-input';
+  input.value = sectie.sectie || '';
+  input.placeholder = 'SECTIENAAM';
+
+  var btnGroup = document.createElement('div');
+  btnGroup.style.cssText = 'display:flex;gap:0.5rem;';
+
+  var addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-secondary';
+  addBtn.style.cssText = 'font-size:0.6rem;padding:0.3rem 0.6rem;';
+  addBtn.textContent = '+ BLOK';
+  addBtn.onclick = function() { addBlok(div); };
+
+  var delBtn = document.createElement('button');
+  delBtn.className = 'btn btn-danger';
+  delBtn.textContent = 'x SECTIE';
+  delBtn.onclick = function() {
+    if (confirm('Hele sectie verwijderen inclusief alle blokken?')) div.remove();
+  };
+
+  btnGroup.appendChild(addBtn);
+  btnGroup.appendChild(delBtn);
+  header.appendChild(input);
+  header.appendChild(btnGroup);
+
+  // Body
+  var body = document.createElement('div');
+  body.className = 'sectie-body';
+
+  (sectie.blokken || []).forEach(function(blok) {
+    body.appendChild(createBlokEl(blok));
+  });
+
+  div.appendChild(header);
+  div.appendChild(body);
   return div;
 }
 
-function renderBlok(blok) {
-  return '<div class="blok-item">'
-    + '<div class="blok-row">'
-    + '<div><label class="field-label">BLOKNAAM</label><input class="text-input blok-naam" value="' + esc(blok.naam || '') + '" placeholder="bijv. Microtubes B3K" /></div>'
-    + '<div><label class="field-label">GEBASEERD OP</label><input class="text-input blok-basis" value="' + esc(blok.basis || '') + '" placeholder="bijv. Darkglass B3K pedaal" /></div>'
-    + '</div>'
-    + '<div><label class="field-label">PARAMETERS (kommagescheiden, met waardebereik)</label>'
-    + '<textarea class="textarea-input blok-params" placeholder="bijv. Drive (0-100%), Blend (0-100%)">' + esc(blok.parameters || '') + '</textarea></div>'
-    + '<div class="blok-actions"><button class="btn btn-danger" onclick="deleteBlok(this)">&times; VERWIJDER BLOK</button></div>'
-    + '</div>';
+function createBlokEl(blok) {
+  var item = document.createElement('div');
+  item.className = 'blok-item';
+
+  // Rij 1: naam + basis
+  var row = document.createElement('div');
+  row.className = 'blok-row';
+
+  var naamGroup = document.createElement('div');
+  var naamLabel = document.createElement('label');
+  naamLabel.className = 'field-label';
+  naamLabel.textContent = 'BLOKNAAM';
+  var naamInput = document.createElement('input');
+  naamInput.className = 'text-input';
+  naamInput.setAttribute('data-veld', 'naam');
+  naamInput.value = blok.naam || '';
+  naamInput.placeholder = 'bijv. Microtubes B3K';
+  naamGroup.appendChild(naamLabel);
+  naamGroup.appendChild(naamInput);
+
+  var basisGroup = document.createElement('div');
+  var basisLabel = document.createElement('label');
+  basisLabel.className = 'field-label';
+  basisLabel.textContent = 'GEBASEERD OP';
+  var basisInput = document.createElement('input');
+  basisInput.className = 'text-input';
+  basisInput.setAttribute('data-veld', 'basis');
+  basisInput.value = blok.basis || '';
+  basisInput.placeholder = 'bijv. Darkglass B3K pedaal';
+  basisGroup.appendChild(basisLabel);
+  basisGroup.appendChild(basisInput);
+
+  row.appendChild(naamGroup);
+  row.appendChild(basisGroup);
+
+  // Parameters textarea
+  var paramsGroup = document.createElement('div');
+  var paramsLabel = document.createElement('label');
+  paramsLabel.className = 'field-label';
+  paramsLabel.textContent = 'PARAMETERS (kommagescheiden, met waardebereik)';
+  var paramsArea = document.createElement('textarea');
+  paramsArea.className = 'textarea-input';
+  paramsArea.setAttribute('data-veld', 'params');
+  paramsArea.value = blok.parameters || '';
+  paramsArea.placeholder = 'bijv. Drive (0-100%), Blend (0-100%)';
+  paramsGroup.appendChild(paramsLabel);
+  paramsGroup.appendChild(paramsArea);
+
+  // Delete knop
+  var actions = document.createElement('div');
+  actions.className = 'blok-actions';
+  var delBtn = document.createElement('button');
+  delBtn.className = 'btn btn-danger';
+  delBtn.textContent = 'x VERWIJDER BLOK';
+  delBtn.onclick = function() { if (confirm('Blok verwijderen?')) item.remove(); };
+  actions.appendChild(delBtn);
+
+  item.appendChild(row);
+  item.appendChild(paramsGroup);
+  item.appendChild(actions);
+  return item;
 }
 
 function addSectie() {
-  var container = document.getElementById('blocksContainer');
+  var container = document.getElementById('blocksContainer').querySelector('div') || document.getElementById('blocksContainer');
   container.appendChild(renderSectie({ sectie: 'NIEUWE SECTIE', blokken: [] }, Date.now()));
 }
 
-function addBlok(btn) {
-  var body = btn.closest('.sectie-block').querySelector('.sectie-body');
-  var div = document.createElement('div');
-  div.innerHTML = renderBlok({ naam: '', basis: '', parameters: '' });
-  body.appendChild(div.firstChild);
-}
-
-function deleteBlok(btn) {
-  if (!confirm('Blok verwijderen?')) return;
-  btn.closest('.blok-item').remove();
-}
-
-function deleteSectie(btn) {
-  if (!confirm('Hele sectie verwijderen inclusief alle blokken?')) return;
-  btn.closest('.sectie-block').remove();
+function addBlok(sectieEl) {
+  var body = sectieEl.querySelector('.sectie-body');
+  body.appendChild(createBlokEl({ naam: '', basis: '', parameters: '' }));
 }
 
 function showStatus(msg, type) {
@@ -229,11 +320,6 @@ function showStatus(msg, type) {
   setTimeout(function() { bar.className = 'status-bar'; }, 4000);
 }
 
-function esc(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// Start
 loadBlocks();
 </script>
 
