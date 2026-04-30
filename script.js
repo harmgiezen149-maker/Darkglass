@@ -258,14 +258,14 @@ function checkBSnaar(tekst) {
 }
 
 // =====================
-// KNOB HELPER
-// 0 = 6 uur (180deg), 10 = 5 uur (150deg), sweep = 330deg
+// KNOB — unipolair (0 tot max)
+// 0 = 6 uur, max = 5 uur, sweep = 330 graden
 // =====================
 function makeKnob(label, value, unit, pct) {
   pct = Math.max(0, Math.min(1, pct));
   var cx = 30, cy = 30, r = 22;
-  var startDeg = 180; // 6 o'clock
-  var totalDeg = 330; // sweeps clockwise to 5 o'clock
+  var startDeg = 180;
+  var totalDeg = 330;
 
   function pt(deg) {
     var rad = (deg - 90) * Math.PI / 180;
@@ -273,21 +273,70 @@ function makeKnob(label, value, unit, pct) {
   }
 
   var s = pt(startDeg);
-  var bgEnd = pt(startDeg + totalDeg); // 5 o'clock
+  var bgEnd = pt(startDeg + totalDeg);
   var endDeg = startDeg + pct * totalDeg;
   var e = pt(endDeg);
   var largeArc = (pct * totalDeg) > 180 ? 1 : 0;
 
-  // Background track: always full 330deg arc (large arc)
   var bgPath = 'M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 1 1 ' + bgEnd.x + ' ' + bgEnd.y;
-  // Value fill
   var fillPath = pct > 0.001 ? ('M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + e.x + ' ' + e.y) : '';
-
   var display = value + (unit === '%' ? '%' : (unit ? ' ' + unit : ''));
 
   return '<div class="knob-wrap">'
     + '<svg class="knob-svg" width="60" height="60" viewBox="0 0 60 60">'
     + '<path class="knob-track" d="' + bgPath + '"/>'
+    + (fillPath ? '<path class="knob-fill" d="' + fillPath + '"/>' : '')
+    + '<text class="knob-center-val" x="30" y="31">' + display + '</text>'
+    + '</svg>'
+    + '<div class="knob-label">' + label + '</div>'
+    + '</div>';
+}
+
+// =====================
+// KNOB — bipolair (±range)
+// 0 dB = 12 uur (midden), positief vult rechts, negatief vult links
+// =====================
+function makeKnobBipolar(label, value, unit, pct) {
+  // pct: -1.0 tot +1.0
+  pct = Math.max(-1, Math.min(1, pct));
+  var cx = 30, cy = 30, r = 22;
+  var startDeg = 180;
+  var totalDeg = 330;
+  var centerDeg = startDeg + totalDeg / 2; // 12 uur = 345 graden
+
+  function pt(deg) {
+    var rad = (deg - 90) * Math.PI / 180;
+    return { x: parseFloat((cx + r * Math.cos(rad)).toFixed(2)), y: parseFloat((cy + r * Math.sin(rad)).toFixed(2)) };
+  }
+
+  var s = pt(startDeg);
+  var bgEnd = pt(startDeg + totalDeg);
+  var center = pt(centerDeg);
+
+  var bgPath = 'M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 1 1 ' + bgEnd.x + ' ' + bgEnd.y;
+
+  var fillPath = '';
+  if (Math.abs(pct) > 0.01) {
+    var arcDeg = Math.abs(pct) * (totalDeg / 2);
+    var largeArc = arcDeg > 180 ? 1 : 0;
+    var endPt;
+    if (pct > 0) {
+      // Positief: clockwise vanuit midden (naar rechts)
+      endPt = pt(centerDeg + arcDeg);
+      fillPath = 'M ' + center.x + ' ' + center.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + endPt.x + ' ' + endPt.y;
+    } else {
+      // Negatief: counter-clockwise vanuit midden (naar links)
+      endPt = pt(centerDeg - arcDeg);
+      fillPath = 'M ' + center.x + ' ' + center.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 0 ' + endPt.x + ' ' + endPt.y;
+    }
+  }
+
+  var display = value + (unit ? ' ' + unit : '');
+
+  return '<div class="knob-wrap">'
+    + '<svg class="knob-svg" width="60" height="60" viewBox="0 0 60 60">'
+    + '<path class="knob-track" d="' + bgPath + '"/>'
+    + '<circle cx="' + center.x + '" cy="' + center.y + '" r="2.5" fill="#3d3d4d"/>'
     + (fillPath ? '<path class="knob-fill" d="' + fillPath + '"/>' : '')
     + '<text class="knob-center-val" x="30" y="31">' + display + '</text>'
     + '</svg>'
@@ -336,11 +385,12 @@ function renderSettingVisual(param, value) {
     else if (unit === 'kHz') pctVal = Math.min(1, uv / 20);
     else if (unit === 'dB') {
       if (uv < -20) {
-        // Threshold type: -80 tot 0 dB → 0dB rechts, -80dB links
+        // Threshold type: -80 tot 0 dB, unipolair
         pctVal = Math.min(1, Math.max(0, (uv + 80) / 80));
+        return makeKnob(p, uv, unit, pctVal);
       } else {
-        // EQ/Gain type: -15 tot +15 dB → 0dB in het midden (6 uur)
-        pctVal = Math.min(1, Math.max(0, (uv + 15) / 30));
+        // EQ/Gain type: bipolair, 0 dB = 12 uur
+        return makeKnobBipolar(p, uv, unit, uv / 15);
       }
     }
     else if (unit === 's') pctVal = Math.min(1, uv / 20);
