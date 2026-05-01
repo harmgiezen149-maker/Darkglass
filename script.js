@@ -99,7 +99,7 @@ function analyzeTone() {
     document.getElementById('chatPanel').classList.remove('hidden');
     document.getElementById('chatMessages').innerHTML = '';
     addMsg('assistant', 'Preset klaar! Heb je vragen of wil je de sound verder verfijnen?');
-    document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('chatPanel').scrollIntoView({ behavior: 'smooth' });
   })
   .catch(function(e) {
     document.getElementById('outputContent').innerHTML = '<p style="color:var(--accent2)">Fout: ' + e.message + '</p>';
