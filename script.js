@@ -5,6 +5,10 @@ var selectedBass = 'spector';
 var chatHistory = [];
 var chatContext = '';
 var currentPresetData = null;
+// Dual scene state
+var isDualMode = false;
+var activeScene = 'spector'; // 'spector' of 'pbass'
+var sceneData = { spector: null, pbass: null }; // { content, html }
 
 // =====================
 // BASS SELECTIE
@@ -44,6 +48,29 @@ var SYSTEM_ANALYZE = 'Je bent een expert in bas-gitaar sound design voor de Dark
   + '## FINE-TUNE TIPS\n[3 concrete tips. Als stemming relevant is, vermeld dan ALLEEN de basstemming (bijv. Drop D, Eb standaard, C# standaard) en niet de gitaarstemming. Let hierbij op welke bas er gekozen is, de spector is standaard in BEADG en de Precision is standaard in EADG]\n\n'
   + 'Antwoord in het Nederlands.';
 
+var SYSTEM_DUAL = SYSTEM_ANALYZE
+  + '\n\nDe gebruiker wil presets voor TWEE bassen tegelijk. Genereer twee volledige, aparte presets.'
+  + 'Gebruik exact dit formaat:\n\n'
+  + '==SCENE_SPECTOR==\n'
+  + 'B_SNAAR_VEREIST: ja of nee\n'
+  + 'ARTIEST: [naam]\n'
+  + 'SONG: [naam]\n'
+  + '## TONE ANALYSE\n...\n'
+  + '## SIGNAALCHAIN\n...\n'
+  + '## BLOKKEN\n...\n'
+  + '## FINE-TUNE TIPS\n...\n'
+  + '==SCENE_PBASS==\n'
+  + 'B_SNAAR_VEREIST: nee\n'
+  + 'ARTIEST: [naam]\n'
+  + 'SONG: [naam]\n'
+  + '## TONE ANALYSE\n...\n'
+  + '## SIGNAALCHAIN\n...\n'
+  + '## BLOKKEN\n...\n'
+  + '## FINE-TUNE TIPS\n...\n\n'
+  + 'Beide presets gebruiken dezelfde blokken structuur maar met aangepaste instellingen per bas. '
+  + 'Vermeld bij de P-Bass scene of blokken aan of uit moeten staan om de sound werkbaar te maken voor 4 snaren. '
+  + 'De Spector is 5-snarig (BEADG, actief, EMG-Hz P/HH), de P-Bass is 4-snarig (EADG, actief, Split-P EMG-Hz).';
+
 // =====================
 // ANALYSEER TONE
 // =====================
@@ -52,9 +79,15 @@ function analyzeTone() {
   var song = document.getElementById('songInput').value.trim();
   if (!artist || !song) { alert('Vul artiest en songtitel in.'); return; }
 
-  var bassLabel = selectedBass === 'spector'
-    ? 'Spector NS Ethos 5 (actief, 5-snarig, EMG-Hz pickup in P/HH configuratie)'
-    : 'Fender Precision Bass (actief, 4-snarig, Split-P EMG-Hz pickup)';
+  isDualMode = selectedBass === 'beide';
+  activeScene = 'spector';
+  sceneData = { spector: null, pbass: null };
+
+  var bassLabel = isDualMode
+    ? 'Spector NS Ethos 5 (actief, 5-snarig, EMG-Hz P/HH) EN Fender Precision Bass (actief, 4-snarig, Split-P EMG-Hz)'
+    : (selectedBass === 'spector'
+        ? 'Spector NS Ethos 5 (actief, 5-snarig, EMG-Hz pickup in P/HH configuratie)'
+        : 'Fender Precision Bass (actief, 4-snarig, Split-P EMG-Hz pickup)');
 
   var btn = document.getElementById('analyzeBtn');
   btn.disabled = true;
@@ -63,42 +96,87 @@ function analyzeTone() {
   document.getElementById('outputPanel').classList.remove('hidden');
   document.getElementById('chatPanel').classList.add('hidden');
   document.getElementById('outputMeta').textContent =
-    artist.toUpperCase() + ' \u2014 ' + song.toUpperCase() + ' \u00b7 ' + bassLabel.toUpperCase();
+    artist.toUpperCase() + ' \u2014 ' + song.toUpperCase()
+    + (isDualMode ? ' \u00b7 SPECTOR + P-BASS' : ' \u00b7 ' + bassLabel.split('(')[0].trim().toUpperCase());
   document.getElementById('outputContent').innerHTML =
     '<div class="loading"><div class="vu"><span></span><span></span><span></span><span></span><span></span><span></span></div><p>Bastone analyseren...</p></div>';
+
+  // Scene tabs tonen/verbergen
+  if (isDualMode) {
+    document.getElementById('sceneTabs').classList.remove('hidden');
+    document.getElementById('tabSpector').classList.add('active');
+    document.getElementById('tabPbass').classList.remove('active');
+  } else {
+    document.getElementById('sceneTabs').classList.add('hidden');
+  }
+
   document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
 
   var extra = document.getElementById('extraInput').value.trim();
-  var userMsg = 'Ik wil de bastone van "' + song + '" van ' + artist
-    + ' namaken met mijn ' + bassLabel + ' en de Darkglass Anagram. Geef me een volledig preset-plan.'
-    + (extra ? '\n\nExtra wensen: ' + extra : '');
+  var userMsg = isDualMode
+    ? 'Ik wil de bastone van "' + song + '" van ' + artist + ' namaken met BEIDE mijn bassen en de Darkglass Anagram. Genereer twee complete presets: een voor de Spector NS Ethos 5 (5-snarig) en een voor de Fender Precision Bass (4-snarig).' + (extra ? '\n\nExtra wensen: ' + extra : '')
+    : 'Ik wil de bastone van "' + song + '" van ' + artist + ' namaken met mijn ' + bassLabel + ' en de Darkglass Anagram. Geef me een volledig preset-plan.' + (extra ? '\n\nExtra wensen: ' + extra : '');
 
   chatHistory = [{ role: 'user', content: userMsg }];
-  chatContext = artist + ' - ' + song + ' | ' + bassLabel;
+  chatContext = artist + ' - ' + song + (isDualMode ? ' | BEIDE BASSEN' : ' | ' + bassLabel);
   currentPresetData = null;
 
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: chatHistory, system: SYSTEM_ANALYZE })
+    body: JSON.stringify({ messages: chatHistory, system: isDualMode ? SYSTEM_DUAL : SYSTEM_ANALYZE })
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
     if (d.error) throw new Error(d.error);
     chatHistory.push({ role: 'assistant', content: d.content });
+
+    // Corrigeer artiest/song
     var correctedArtist = artist, correctedSong = song;
     d.content.split('\n').forEach(function(l) {
       l = l.trim();
       if (l.startsWith('ARTIEST:')) correctedArtist = l.replace('ARTIEST:', '').trim();
       if (l.startsWith('SONG:')) correctedSong = l.replace('SONG:', '').trim();
     });
-    currentPresetData = { artist: correctedArtist, song: correctedSong, bass: bassLabel, content: d.content };
+
+    if (isDualMode) {
+      // Splits response in twee scenes
+      var parts = splitDualResponse(d.content);
+      sceneData.spector = { content: parts.spector, html: toHtml(parts.spector, 'spector') };
+      sceneData.pbass   = { content: parts.pbass,   html: toHtml(parts.pbass, 'pbass') };
+      activeScene = 'spector';
+      document.getElementById('outputContent').innerHTML = sceneData.spector.html;
+
+      currentPresetData = {
+        artist: correctedArtist, song: correctedSong,
+        bass: 'Beide bassen',
+        isDual: true,
+        sceneData: sceneData
+      };
+    } else {
+      var html = toHtml(d.content, selectedBass);
+      currentPresetData = { artist: correctedArtist, song: correctedSong, bass: bassLabel, content: d.content, isDual: false };
+      document.getElementById('outputContent').innerHTML = html;
+    }
+
     document.getElementById('outputMeta').textContent =
-      correctedArtist.toUpperCase() + ' \u2014 ' + correctedSong.toUpperCase() + ' \u00b7 ' + bassLabel.toUpperCase();
-    document.getElementById('outputContent').innerHTML = toHtml(d.content);
+      correctedArtist.toUpperCase() + ' \u2014 ' + correctedSong.toUpperCase()
+      + (isDualMode ? ' \u00b7 SPECTOR + P-BASS' : ' \u00b7 ' + bassLabel.split('(')[0].trim().toUpperCase());
+
     document.getElementById('chatPanel').classList.remove('hidden');
     document.getElementById('chatMessages').innerHTML = '';
-    addMsg('assistant', 'Preset klaar! Heb je vragen of wil je de sound verder verfijnen?');
+
+    // Scene indicator in chat
+    if (isDualMode) {
+      document.getElementById('sceneIndicator').classList.remove('hidden');
+      document.getElementById('sceneIndicator').textContent = 'Chat past de actieve scene aan: SCENE 1 \u2014 SPECTOR';
+    } else {
+      document.getElementById('sceneIndicator').classList.add('hidden');
+    }
+
+    addMsg('assistant', isDualMode
+      ? 'Beide presets klaar! Gebruik de tabs om te wisselen. De chat past de actieve scene aan.'
+      : 'Preset klaar! Heb je vragen of wil je de sound verder verfijnen?');
     document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
   })
   .catch(function(e) {
@@ -108,6 +186,47 @@ function analyzeTone() {
     btn.disabled = false;
     document.getElementById('btnText').textContent = 'ANALYSEER TONE';
   });
+}
+
+// =====================
+// SCENE WISSELEN
+// =====================
+function switchScene(scene) {
+  if (!isDualMode || !sceneData[scene]) return;
+  activeScene = scene;
+
+  document.getElementById('tabSpector').classList.toggle('active', scene === 'spector');
+  document.getElementById('tabPbass').classList.toggle('active', scene === 'pbass');
+  document.getElementById('outputContent').innerHTML = sceneData[scene].html;
+
+  var sceneLabel = scene === 'spector' ? 'SCENE 1 \u2014 SPECTOR' : 'SCENE 2 \u2014 P-BASS';
+  document.getElementById('sceneIndicator').textContent = 'Chat past de actieve scene aan: ' + sceneLabel;
+
+  // Reset chat context naar actieve scene
+  chatHistory = [
+    { role: 'user', content: chatHistory[0] ? chatHistory[0].content : '' },
+    { role: 'assistant', content: sceneData[scene].content }
+  ];
+}
+
+// =====================
+// DUAL RESPONSE SPLITTER
+// =====================
+function splitDualResponse(text) {
+  var spectorIdx = text.indexOf('==SCENE_SPECTOR==');
+  var pbassIdx   = text.indexOf('==SCENE_PBASS==');
+
+  var spectorText = '', pbassText = '';
+
+  if (spectorIdx !== -1 && pbassIdx !== -1) {
+    spectorText = text.substring(spectorIdx + '==SCENE_SPECTOR=='.length, pbassIdx).trim();
+    pbassText   = text.substring(pbassIdx   + '==SCENE_PBASS=='.length).trim();
+  } else {
+    // Fallback: als markers ontbreken, gebruik de hele tekst voor beide
+    spectorText = text;
+    pbassText   = text;
+  }
+  return { spector: spectorText, pbass: pbassText };
 }
 
 // =====================
@@ -121,10 +240,23 @@ function sendChat() {
   addMsg('user', msg);
   chatHistory.push({ role: 'user', content: msg });
   addMsg('assistant', 'Preset wordt bijgewerkt...');
+
   document.getElementById('outputContent').innerHTML =
     '<div class="loading"><div class="vu"><span></span><span></span><span></span><span></span><span></span><span></span></div><p>Preset bijwerken...</p></div>';
   document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
-  var systemChat = SYSTEM_ANALYZE + '\n\nDe gebruiker heeft een aanvullende wens. Genereer een VOLLEDIG NIEUW bijgewerkt preset-plan in exact hetzelfde formaat. Verwerk de aanpassing volledig. Geef alleen het preset-plan.';
+
+  var bassForChat = isDualMode
+    ? (activeScene === 'spector'
+        ? 'Spector NS Ethos 5 (actief, 5-snarig, EMG-Hz P/HH)'
+        : 'Fender Precision Bass (actief, 4-snarig, Split-P EMG-Hz)')
+    : (selectedBass === 'spector'
+        ? 'Spector NS Ethos 5 (actief, 5-snarig, EMG-Hz P/HH)'
+        : 'Fender Precision Bass (actief, 4-snarig, Split-P EMG-Hz)');
+
+  var systemChat = SYSTEM_ANALYZE
+    + '\n\nDe gebruiker verfijnt de preset voor: ' + bassForChat + '. '
+    + 'Genereer een VOLLEDIG NIEUW bijgewerkt preset-plan in exact hetzelfde formaat. Geen extra uitleg buiten het preset-plan.';
+
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -134,8 +266,17 @@ function sendChat() {
   .then(function(d) {
     if (d.error) throw new Error(d.error);
     chatHistory.push({ role: 'assistant', content: d.content });
-    if (currentPresetData) currentPresetData.content = d.content;
-    document.getElementById('outputContent').innerHTML = toHtml(d.content);
+
+    var html = toHtml(d.content, isDualMode ? activeScene : selectedBass);
+    document.getElementById('outputContent').innerHTML = html;
+
+    if (isDualMode) {
+      sceneData[activeScene] = { content: d.content, html: html };
+      if (currentPresetData) currentPresetData.sceneData = sceneData;
+    } else {
+      if (currentPresetData) currentPresetData.content = d.content;
+    }
+
     var lastMsg = document.getElementById('chatMessages').lastElementChild;
     if (lastMsg) { var b = lastMsg.querySelector('.msg-bubble'); if (b) b.innerHTML = '\u2713 Preset bijgewerkt.'; }
     document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
@@ -167,6 +308,7 @@ function savePreset() {
   if (!currentPresetData) { alert('Geen preset om op te slaan.'); return; }
   var id = Date.now().toString();
   var datum = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
   var bestaatAl = false;
   for (var key in presetsCache) {
     if (presetsCache[key].artist === currentPresetData.artist && presetsCache[key].song === currentPresetData.song) { bestaatAl = true; break; }
@@ -177,7 +319,20 @@ function savePreset() {
     if (inp === null) return;
     label = inp.trim();
   }
-  var preset = { id: id, artist: currentPresetData.artist, song: currentPresetData.song, bass: currentPresetData.bass, content: currentPresetData.content, datum: datum, label: label };
+
+  var preset = {
+    id: id,
+    artist: currentPresetData.artist,
+    song: currentPresetData.song,
+    bass: currentPresetData.bass,
+    isDual: currentPresetData.isDual || false,
+    content: currentPresetData.isDual ? null : currentPresetData.content,
+    sceneSpector: currentPresetData.isDual ? currentPresetData.sceneData.spector.content : null,
+    scenePbass:   currentPresetData.isDual ? currentPresetData.sceneData.pbass.content   : null,
+    datum: datum,
+    label: label
+  };
+
   var btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = 'OPSLAAN...';
   fetch('/api/presets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preset: preset }) })
@@ -195,13 +350,34 @@ function savePreset() {
 
 function loadPreset(id) {
   var p = presetsCache[id]; if (!p) return;
-  currentPresetData = { artist: p.artist, song: p.song, bass: p.bass, content: p.content };
+
+  isDualMode = p.isDual || false;
+  activeScene = 'spector';
+
   document.getElementById('outputMeta').textContent = p.artist.toUpperCase() + ' \u2014 ' + p.song.toUpperCase() + ' \u00b7 ' + p.bass.toUpperCase();
-  document.getElementById('outputContent').innerHTML = toHtml(p.content);
+
+  if (isDualMode && p.sceneSpector && p.scenePbass) {
+    sceneData.spector = { content: p.sceneSpector, html: toHtml(p.sceneSpector, 'spector') };
+    sceneData.pbass   = { content: p.scenePbass,   html: toHtml(p.scenePbass, 'pbass') };
+    document.getElementById('sceneTabs').classList.remove('hidden');
+    document.getElementById('tabSpector').classList.add('active');
+    document.getElementById('tabPbass').classList.remove('active');
+    document.getElementById('outputContent').innerHTML = sceneData.spector.html;
+    currentPresetData = { artist: p.artist, song: p.song, bass: p.bass, isDual: true, sceneData: sceneData };
+    document.getElementById('sceneIndicator').classList.remove('hidden');
+    document.getElementById('sceneIndicator').textContent = 'Chat past de actieve scene aan: SCENE 1 \u2014 SPECTOR';
+  } else {
+    document.getElementById('sceneTabs').classList.add('hidden');
+    document.getElementById('sceneIndicator').classList.add('hidden');
+    document.getElementById('outputContent').innerHTML = toHtml(p.content || '', 'spector');
+    currentPresetData = { artist: p.artist, song: p.song, bass: p.bass, content: p.content, isDual: false };
+  }
+
   document.getElementById('outputPanel').classList.remove('hidden');
   document.getElementById('chatPanel').classList.remove('hidden');
   document.getElementById('chatMessages').innerHTML = '';
-  chatHistory = []; chatContext = p.artist + ' - ' + p.song + ' | ' + p.bass;
+  chatHistory = [];
+  chatContext = p.artist + ' - ' + p.song + ' | ' + p.bass;
   addMsg('assistant', 'Preset geladen! Wil je nog aanpassingen maken?');
   document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
 }
@@ -222,10 +398,11 @@ function renderSavedPanel() {
   panel.classList.remove('hidden');
   list.innerHTML = keys.map(function(id) {
     var p = presetsCache[id];
-    var subtitle = p.bass.split('(')[0].trim() + ' \u00b7 ' + p.datum;
+    var subtitle = p.bass + ' \u00b7 ' + p.datum;
     if (p.label) subtitle += ' \u00b7 ' + p.label;
+    var dualBadge = p.isDual ? '<span style="font-size:0.55rem;color:var(--accent2);border:1px solid var(--accent2);padding:0.1rem 0.35rem;border-radius:2px;margin-left:0.5rem;font-family:var(--font-a);letter-spacing:0.1em">2 SCENES</span>' : '';
     return '<div class="saved-item"><div class="saved-item-header"><div>'
-      + '<div class="saved-item-title">' + p.artist + ' \u2014 ' + p.song + '</div>'
+      + '<div class="saved-item-title">' + p.artist + ' \u2014 ' + p.song + dualBadge + '</div>'
       + '<div class="saved-item-date">' + subtitle + '</div>'
       + '</div><div class="saved-item-actions">'
       + '<button class="saved-action-btn btn-load" onclick="loadPreset(\'' + id + '\')">LADEN</button>'
@@ -258,109 +435,76 @@ function checkBSnaar(tekst) {
 }
 
 // =====================
-// KNOB — unipolair (0 tot max)
-// 0 = 6 uur, max = 5 uur, sweep = 330 graden
+// KNOB — unipolair
 // =====================
 function makeKnob(label, value, unit, pct) {
   pct = Math.max(0, Math.min(1, pct));
   var cx = 30, cy = 30, r = 22;
-  var startDeg = 180;
-  var totalDeg = 330;
-
+  var startDeg = 180, totalDeg = 330;
   function pt(deg) {
     var rad = (deg - 90) * Math.PI / 180;
     return { x: parseFloat((cx + r * Math.cos(rad)).toFixed(2)), y: parseFloat((cy + r * Math.sin(rad)).toFixed(2)) };
   }
-
-  var s = pt(startDeg);
-  var bgEnd = pt(startDeg + totalDeg);
-  var endDeg = startDeg + pct * totalDeg;
-  var e = pt(endDeg);
+  var s = pt(startDeg), bgEnd = pt(startDeg + totalDeg);
+  var e = pt(startDeg + pct * totalDeg);
   var largeArc = (pct * totalDeg) > 180 ? 1 : 0;
-
   var bgPath = 'M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 1 1 ' + bgEnd.x + ' ' + bgEnd.y;
   var fillPath = pct > 0.001 ? ('M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + e.x + ' ' + e.y) : '';
   var display = value + (unit === '%' ? '%' : (unit ? ' ' + unit : ''));
-
   return '<div class="knob-wrap">'
     + '<svg class="knob-svg" width="60" height="60" viewBox="0 0 60 60">'
     + '<path class="knob-track" d="' + bgPath + '"/>'
     + (fillPath ? '<path class="knob-fill" d="' + fillPath + '"/>' : '')
     + '<text class="knob-center-val" x="30" y="31">' + display + '</text>'
-    + '</svg>'
-    + '<div class="knob-label">' + label + '</div>'
-    + '</div>';
+    + '</svg><div class="knob-label">' + label + '</div></div>';
 }
 
 // =====================
-// KNOB — bipolair (±range)
-// 0 dB = 12 uur (midden), positief vult rechts, negatief vult links
-// Track: 7 uur (210°) → 12 uur (0°) → 5 uur (150°), sweep 300°
+// KNOB — bipolair
 // =====================
 function makeKnobBipolar(label, value, unit, pct) {
   pct = Math.max(-1, Math.min(1, pct));
   var cx = 30, cy = 30, r = 22;
-
   function pt(deg) {
     var rad = (deg - 90) * Math.PI / 180;
-    return {
-      x: parseFloat((cx + r * Math.cos(rad)).toFixed(2)),
-      y: parseFloat((cy + r * Math.sin(rad)).toFixed(2))
-    };
+    return { x: parseFloat((cx + r * Math.cos(rad)).toFixed(2)), y: parseFloat((cy + r * Math.sin(rad)).toFixed(2)) };
   }
-
-  // Track: van 210° (7 uur) clockwise 300° naar 150° (5 uur)
-  var trackStart = pt(210);
-  var trackEnd   = pt(150);
-  var bgPath = 'M ' + trackStart.x + ' ' + trackStart.y
-    + ' A ' + r + ' ' + r + ' 0 1 1 ' + trackEnd.x + ' ' + trackEnd.y;
-
-  // Middelpunt = 0° = 12 uur
+  var trackStart = pt(210), trackEnd = pt(150);
+  var bgPath = 'M ' + trackStart.x + ' ' + trackStart.y + ' A ' + r + ' ' + r + ' 0 1 1 ' + trackEnd.x + ' ' + trackEnd.y;
   var center = pt(0);
-
   var fillPath = '';
   if (Math.abs(pct) > 0.01) {
-    var arcDeg = Math.abs(pct) * 150; // max helft = 150°
+    var arcDeg = Math.abs(pct) * 150;
     var largeArc = arcDeg > 180 ? 1 : 0;
     var endPt;
     if (pct > 0) {
-      // Positief: clockwise van 12 uur naar rechts (0° → 150°)
       endPt = pt(arcDeg);
-      fillPath = 'M ' + center.x + ' ' + center.y
-        + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + endPt.x + ' ' + endPt.y;
+      fillPath = 'M ' + center.x + ' ' + center.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + endPt.x + ' ' + endPt.y;
     } else {
-      // Negatief: counter-clockwise van 12 uur naar links (0° → -150° = 210°)
       endPt = pt(360 - arcDeg);
-      fillPath = 'M ' + center.x + ' ' + center.y
-        + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 0 ' + endPt.x + ' ' + endPt.y;
+      fillPath = 'M ' + center.x + ' ' + center.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 0 ' + endPt.x + ' ' + endPt.y;
     }
   }
-
   var display = value + (unit ? ' ' + unit : '');
-
   return '<div class="knob-wrap">'
     + '<svg class="knob-svg" width="60" height="60" viewBox="0 0 60 60">'
     + '<path class="knob-track" d="' + bgPath + '"/>'
     + '<circle cx="' + center.x + '" cy="' + center.y + '" r="2.5" fill="#3d3d4d"/>'
     + (fillPath ? '<path class="knob-fill" d="' + fillPath + '"/>' : '')
     + '<text class="knob-center-val" x="30" y="31">' + display + '</text>'
-    + '</svg>'
-    + '<div class="knob-label">' + label + '</div>'
-    + '</div>';
+    + '</svg><div class="knob-label">' + label + '</div></div>';
 }
 
 function makeToggle(label, isOn) {
   return '<div class="toggle-wrap">'
     + '<div class="toggle-track ' + (isOn ? 'on' : 'off') + '"><div class="toggle-thumb"></div></div>'
     + '<div class="toggle-val">' + (isOn ? 'ON' : 'OFF') + '</div>'
-    + '<div class="toggle-label">' + label + '</div>'
-    + '</div>';
+    + '<div class="toggle-label">' + label + '</div></div>';
 }
 
 function makeSelector(label, options, activeVal) {
   var opts = options.map(function(o) {
-    var active = o.trim().toLowerCase() === activeVal.trim().toLowerCase();
-    return '<span class="selector-opt' + (active ? ' active' : '') + '">' + o.trim() + '</span>';
+    return '<span class="selector-opt' + (o.trim().toLowerCase() === activeVal.trim().toLowerCase() ? ' active' : '') + '">' + o.trim() + '</span>';
   }).join('');
   return '<div class="selector-wrap"><div class="selector-label">' + label + '</div><div class="selector-opts">' + opts + '</div></div>';
 }
@@ -371,54 +515,32 @@ function makeTextBadge(label, value) {
 
 function renderSettingVisual(param, value) {
   var p = param.trim(), v = value.trim();
-
-  // Toggle
   if (v.toLowerCase() === 'on') return makeToggle(p, true);
   if (v.toLowerCase() === 'off') return makeToggle(p, false);
-
-  // Percentage
   var pctM = v.match(/^(\d+(?:\.\d+)?)\s*%$/);
   if (pctM) { var pv = parseFloat(pctM[1]); return makeKnob(p, Math.round(pv), '%', pv / 100); }
-
-  // Getal met eenheid (ms, Hz, kHz, dB, s, cents)
   var unitM = v.match(/^([+-]?\d+(?:\.\d+)?)\s*(ms|Hz|kHz|dB|s|cents)$/i);
   if (unitM) {
-    var uv = parseFloat(unitM[1]), unit = unitM[2];
-    var pctVal = 0.5;
+    var uv = parseFloat(unitM[1]), unit = unitM[2], pctVal = 0.5;
     if (unit === 'ms') pctVal = Math.min(1, uv / 2000);
     else if (unit.toLowerCase() === 'hz') pctVal = Math.min(1, uv / 10000);
     else if (unit === 'kHz') pctVal = Math.min(1, uv / 20);
     else if (unit === 'dB') {
-      if (uv < -20) {
-        // Threshold type: -80 tot 0 dB, unipolair
-        pctVal = Math.min(1, Math.max(0, (uv + 80) / 80));
-        return makeKnob(p, uv, unit, pctVal);
-      } else {
-        // EQ/Gain type: bipolair, 0 dB = 12 uur
-        return makeKnobBipolar(p, uv, unit, uv / 15);
-      }
+      if (uv < -20) { pctVal = Math.min(1, Math.max(0, (uv + 80) / 80)); return makeKnob(p, uv, unit, pctVal); }
+      else { return makeKnobBipolar(p, uv, unit, uv / 15); }
     }
     else if (unit === 's') pctVal = Math.min(1, uv / 20);
     else if (unit === 'cents') pctVal = Math.min(1, Math.max(0, (uv + 100) / 200));
     return makeKnob(p, uv, unit, pctVal);
   }
-
-  // 0-10 getal zonder eenheid
   var num = v.match(/^(\d+(?:\.\d+)?)$/);
   if (num) { var nv = parseFloat(num[1]); return makeKnob(p, nv % 1 === 0 ? Math.round(nv) : nv, '', Math.min(1, nv / 10)); }
-
-  // Slash-opties
   if (v.indexOf('/') !== -1) {
     var parts = v.split('/').map(function(x) { return x.trim(); });
-    if (parts.length <= 5 && parts.every(function(x) { return x.length < 16; })) {
-      return makeSelector(p, parts, parts[0]);
-    }
+    if (parts.length <= 6 && parts.every(function(x) { return x.length < 16; })) return makeSelector(p, parts, parts[0]);
     return makeTextBadge(p, v);
   }
-
-  // Ratio / All / Auto
   if (v.match(/^\d+:\d+$/) || v === 'All' || v === 'Auto') return makeSelector(p, [v], v);
-
   return makeTextBadge(p, v);
 }
 
@@ -439,18 +561,19 @@ function renderChainRegel(chainStr) {
 // =====================
 // HTML RENDERER
 // =====================
-function toHtml(t) {
+function toHtml(t, bassContext) {
   var regels = t.split('\n');
   var html = '';
   var inBlok = false, blokNaam = '', blokSettings = [], blokUitleg = '';
   var blokTeller = 0, inChain = false, chainHtml = '', inTips = false;
 
-  if (selectedBass === 'pbass' && checkBSnaar(t)) {
+  // B-snaar waarschuwing alleen voor pbass context
+  var showBsnaar = (bassContext === 'pbass') && checkBSnaar(t);
+  if (showBsnaar) {
     html += '<div class="bsnaar-warning"><span class="bsnaar-icon">\u26a0</span>'
       + '<div><strong>Let op: 4-snarige bas</strong><br>'
       + 'Dit nummer maakt waarschijnlijk gebruik van een lage B-snaar. '
-      + 'Met je Fender Precision Bass kun je mogelijk niet alle noten spelen zoals in het origineel. '
-      + 'Overweeg de Spector NS Ethos 5.</div></div>';
+      + 'Met je Fender Precision Bass kun je mogelijk niet alle noten spelen zoals in het origineel.</div></div>';
   }
 
   function sluitBlok() {
@@ -464,23 +587,12 @@ function toHtml(t) {
       visuals += renderSettingVisual(param, waarde);
     });
     visuals += '</div>';
-
     html += '<div class="blok-kaart">'
       + '<div class="blok-titel"><span class="blok-nummer">' + blokTeller + '</span><span class="blok-naam">' + blokNaam + '</span></div>'
-      + '<div class="blok-body">'
-      + (blokSettings.length ? visuals : '')
-      + (blokUitleg ? '<div class="blok-uitleg">' + blokUitleg + '</div>' : '')
-      + '</div></div>';
-
+      + '<div class="blok-body">' + (blokSettings.length ? visuals : '') + (blokUitleg ? '<div class="blok-uitleg">' + blokUitleg + '</div>' : '') + '</div></div>';
     inBlok = false; blokNaam = ''; blokSettings = []; blokUitleg = '';
   }
-
-  function sluitChain() {
-    if (!inChain) return;
-    html += '<div class="chain-container">' + chainHtml + '</div>';
-    chainHtml = ''; inChain = false;
-  }
-
+  function sluitChain() { if (!inChain) return; html += '<div class="chain-container">' + chainHtml + '</div>'; chainHtml = ''; inChain = false; }
   function sluitTips() { if (!inTips) return; html += '</div>'; inTips = false; }
 
   for (var i = 0; i < regels.length; i++) {
@@ -492,45 +604,25 @@ function toHtml(t) {
     if (r.startsWith('## ')) {
       sluitBlok(); sluitChain(); sluitTips();
       var sectie = r.replace('## ', '');
-      if (sectie === 'SIGNAALCHAIN') {
-        html += '<div class="sectie-titel">SIGNAALCHAIN</div>';
-        inChain = true; chainHtml = '';
-      } else if (sectie === 'FINE-TUNE TIPS') {
-        html += '<div class="sectie-titel">FINE-TUNE TIPS</div><div class="tip-box">';
-        inTips = true;
-      } else {
-        html += '<div class="sectie-titel">' + sectie + '</div>';
-      }
+      if (sectie === 'SIGNAALCHAIN') { html += '<div class="sectie-titel">SIGNAALCHAIN</div>'; inChain = true; chainHtml = ''; }
+      else if (sectie === 'FINE-TUNE TIPS') { html += '<div class="sectie-titel">FINE-TUNE TIPS</div><div class="tip-box">'; inTips = true; }
+      else { html += '<div class="sectie-titel">' + sectie + '</div>'; }
       continue;
     }
 
     if (inChain) {
-      if (r === 'SERIEEL') {
-        chainHtml += '<div class="chain-row"><span class="parallel-badge" style="border-color:var(--accent);color:var(--accent)">\u2192 SERIEEL</span></div>';
-      } else if (r === 'PARALLEL') {
-        chainHtml += '<div class="chain-row"><span class="parallel-badge">\u21c4 PARALLEL ROUTING</span></div>';
-      } else if (r.startsWith('CHAIN_A:')) {
-        chainHtml += '<div class="chain-row"><span class="chain-label">A</span>' + renderChainRegel(r.replace('CHAIN_A:', '').trim()) + '</div>';
-      } else if (r.startsWith('CHAIN_B:')) {
-        chainHtml += '<div class="chain-row"><span class="chain-label">B</span>' + renderChainRegel(r.replace('CHAIN_B:', '').trim()) + '</div>';
-      } else if (r.startsWith('CHAIN:')) {
-        chainHtml += '<div class="chain-row">' + renderChainRegel(r.replace('CHAIN:', '').trim()) + '</div>';
-      } else if (r.startsWith('MERGE_NAAR:')) {
-        chainHtml += '<div class="chain-row"><span class="chain-merge">\u21e3 MERGE</span>' + renderChainRegel(r.replace('MERGE_NAAR:', '').trim()) + '</div>';
-      } else if (r.indexOf('\u2192') !== -1 || r.indexOf('>') !== -1) {
-        chainHtml += '<div class="chain-row">' + renderChainRegel(r) + '</div>';
-      } else {
-        chainHtml += '<p style="font-size:0.75rem;color:var(--text-dim);margin:0.25rem 0">' + r + '</p>';
-      }
+      if (r === 'SERIEEL') chainHtml += '<div class="chain-row"><span class="parallel-badge" style="border-color:var(--accent);color:var(--accent)">\u2192 SERIEEL</span></div>';
+      else if (r === 'PARALLEL') chainHtml += '<div class="chain-row"><span class="parallel-badge">\u21c4 PARALLEL ROUTING</span></div>';
+      else if (r.startsWith('CHAIN_A:')) chainHtml += '<div class="chain-row"><span class="chain-label">A</span>' + renderChainRegel(r.replace('CHAIN_A:', '').trim()) + '</div>';
+      else if (r.startsWith('CHAIN_B:')) chainHtml += '<div class="chain-row"><span class="chain-label">B</span>' + renderChainRegel(r.replace('CHAIN_B:', '').trim()) + '</div>';
+      else if (r.startsWith('CHAIN:')) chainHtml += '<div class="chain-row">' + renderChainRegel(r.replace('CHAIN:', '').trim()) + '</div>';
+      else if (r.startsWith('MERGE_NAAR:')) chainHtml += '<div class="chain-row"><span class="chain-merge">\u21e3 MERGE</span>' + renderChainRegel(r.replace('MERGE_NAAR:', '').trim()) + '</div>';
+      else if (r.indexOf('\u2192') !== -1 || r.indexOf('>') !== -1) chainHtml += '<div class="chain-row">' + renderChainRegel(r) + '</div>';
+      else chainHtml += '<p style="font-size:0.75rem;color:var(--text-dim);margin:0.25rem 0">' + r + '</p>';
       continue;
     }
 
-    if (r.startsWith('### ')) {
-      sluitBlok();
-      blokTeller++; inBlok = true;
-      blokNaam = r.replace('### ', '');
-      continue;
-    }
+    if (r.startsWith('### ')) { sluitBlok(); blokTeller++; inBlok = true; blokNaam = r.replace('### ', ''); continue; }
 
     if (inBlok) {
       if (r === 'INSTELLINGEN:') continue;
@@ -540,7 +632,6 @@ function toHtml(t) {
     }
 
     if (inTips) { html += '<p style="margin-bottom:0.5rem">' + r.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + '</p>'; continue; }
-
     html += '<p>' + r.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + '</p>';
   }
 
