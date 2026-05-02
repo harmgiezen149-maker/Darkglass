@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
   <header>
     <div class="logo-group">
       <div class="logo-mark">DG</div>
@@ -19,28 +18,29 @@
       </div>
     </div>
     <div class="header-dots">
-      <span class="dot active"></span>
-      <span class="dot"></span>
-      <span class="dot"></span>
+      <span class="dot active"></span><span class="dot"></span><span class="dot"></span>
     </div>
   </header>
 
   <main>
 
-    <!-- 01 SETUP -->
     <section class="panel" id="setupPanel">
       <div class="panel-label">01 / SETUP</div>
 
       <div class="field-group">
         <label class="field-label">BASS SELECTIE</label>
-        <div class="bass-selector">
+        <div class="bass-selector bass-selector-3">
           <button class="bass-btn active" data-bass="spector">
             <span class="bass-name">SPECTOR NS ETHOS 5</span>
-            <span class="bass-detail">Actief · 5-snarig · EMG-Hz P/HH configuratie</span>
+            <span class="bass-detail">Actief &middot; 5-snarig &middot; EMG-Hz P/HH</span>
           </button>
           <button class="bass-btn" data-bass="pbass">
             <span class="bass-name">FENDER PRECISION BASS</span>
-            <span class="bass-detail">Actief · 4-snarig · EMG-Hz Split-P</span>
+            <span class="bass-detail">Actief &middot; 4-snarig &middot; Split-P EMG-Hz</span>
+          </button>
+          <button class="bass-btn bass-btn-dual" data-bass="beide">
+            <span class="bass-name">BEIDE BASSEN</span>
+            <span class="bass-detail">2 scenes &middot; Spector + P-Bass</span>
           </button>
         </div>
       </div>
@@ -57,25 +57,32 @@
 
       <div class="field-group">
         <label class="field-label" for="extraInput">EXTRA WENSEN <span class="field-label-opt">(optioneel)</span></label>
-        <textarea id="extraInput" class="text-input text-area" rows="3" placeholder="bijv: meer distortion dan het origineel, parallelle processing nodig, minder attack op de compressor..."></textarea>
+        <textarea id="extraInput" class="text-input text-area" rows="3" placeholder="bijv: meer distortion dan het origineel, parallelle processing nodig..."></textarea>
       </div>
 
       <button class="analyze-btn" id="analyzeBtn" onclick="analyzeTone()">
         <span id="btnText">ANALYSEER TONE</span>
-        <span>→</span>
+        <span>&#8594;</span>
       </button>
     </section>
 
-    <!-- 02 PRESET OUTPUT -->
     <section class="panel hidden" id="outputPanel">
       <div class="panel-label">02 / ANAGRAM PRESET</div>
       <div class="output-meta" id="outputMeta"></div>
+      <div class="scene-tabs hidden" id="sceneTabs">
+        <button class="scene-tab active" id="tabSpector" onclick="switchScene('spector')">
+          SCENE 1 &mdash; SPECTOR NS ETHOS 5
+        </button>
+        <button class="scene-tab" id="tabPbass" onclick="switchScene('pbass')">
+          SCENE 2 &mdash; FENDER P-BASS
+        </button>
+      </div>
       <div class="output-content" id="outputContent"></div>
     </section>
 
-    <!-- 03 FINE-TUNE CHAT + OPSLAAN -->
     <section class="panel hidden" id="chatPanel">
       <div class="panel-label">03 / FINE-TUNE CHAT</div>
+      <div class="scene-indicator hidden" id="sceneIndicator"></div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-row">
         <input type="text" id="chatInput" class="text-input" placeholder="Stel een vraag of geef een aanpassing..." onkeydown="if(event.key==='Enter') sendChat()" />
@@ -88,7 +95,6 @@
       </div>
     </section>
 
-    <!-- 04 OPGESLAGEN PRESETS -->
     <section class="panel hidden" id="savedPanel">
       <div class="panel-label">04 / OPGESLAGEN PRESETS</div>
       <div class="saved-list" id="savedList"></div>
@@ -96,8 +102,7 @@
 
   </main>
 
-  <footer>DARKGLASS ANAGRAM TONE ARCHITECT — HARM'S SIGNAL CHAIN</footer>
-
+  <footer>DARKGLASS ANAGRAM TONE ARCHITECT &mdash; HARM'S SIGNAL CHAIN</footer>
   <script src="script.js"></script>
 </body>
 </html>
