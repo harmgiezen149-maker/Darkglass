@@ -46,6 +46,7 @@ var SYSTEM_ANALYZE = 'Je bent een expert in bas-gitaar sound design voor de Dark
   + '- Parameternaam: waarde\n'
   + 'UITLEG: een zin waarom\n\n'
   + '## FINE-TUNE TIPS\n[3 concrete tips. Als stemming relevant is, vermeld dan ALLEEN de basstemming (bijv. Drop D, Eb standaard, C# standaard) en niet de gitaarstemming. Let hierbij op welke bas er gekozen is, de spector is standaard in BEADG en de Precision is standaard in EADG]\n\n'
+  + 'Voeg ALTIJD als laatste blok in de signaalchain een Volume Pedal toe (Utility blok), zodat de speler altijd volumecontrole heeft. Geef dit blok de instelling: Level (0-100%) met een aanbevolen startwaarde.\n\n'
   + 'Antwoord in het Nederlands.';
 
 var SYSTEM_DUAL = SYSTEM_ANALYZE
