@@ -46,7 +46,6 @@ var SYSTEM_ANALYZE = 'Je bent een expert in bas-gitaar sound design voor de Dark
   + '- Parameternaam: waarde\n'
   + 'UITLEG: een zin waarom\n\n'
   + '## FINE-TUNE TIPS\n[3 concrete tips. Als stemming relevant is, vermeld dan ALLEEN de basstemming (bijv. Drop D, Eb standaard, C# standaard) en niet de gitaarstemming. Let hierbij op welke bas er gekozen is, de spector is standaard in BEADG en de Precision is standaard in EADG]\n\n'
-  + 'Voeg ALTIJD als laatste blok in de signaalchain een Volume Pedal toe (Utility blok), zodat de speler altijd volumecontrole heeft. Geef dit blok de instelling: Level (0-100%) met een aanbevolen startwaarde.\n\n'
   + 'Antwoord in het Nederlands.';
 
 var SYSTEM_DUAL = SYSTEM_ANALYZE
@@ -122,71 +121,58 @@ function analyzeTone() {
   chatContext = artist + ' - ' + song + (isDualMode ? ' | BEIDE BASSEN' : ' | ' + bassLabel);
   currentPresetData = null;
 
-  fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: chatHistory, system: isDualMode ? SYSTEM_DUAL : SYSTEM_ANALYZE })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.error) throw new Error(d.error);
-    chatHistory.push({ role: 'assistant', content: d.content });
-
-    // Corrigeer artiest/song
-    var correctedArtist = artist, correctedSong = song;
-    d.content.split('\n').forEach(function(l) {
-      l = l.trim();
-      if (l.startsWith('ARTIEST:')) correctedArtist = l.replace('ARTIEST:', '').trim();
-      if (l.startsWith('SONG:')) correctedSong = l.replace('SONG:', '').trim();
-    });
-
-    if (isDualMode) {
-      // Splits response in twee scenes
-      var parts = splitDualResponse(d.content);
-      sceneData.spector = { content: parts.spector, html: toHtml(parts.spector, 'spector') };
-      sceneData.pbass   = { content: parts.pbass,   html: toHtml(parts.pbass, 'pbass') };
-      activeScene = 'spector';
-      document.getElementById('outputContent').innerHTML = sceneData.spector.html;
-
-      currentPresetData = {
-        artist: correctedArtist, song: correctedSong,
-        bass: 'Beide bassen',
-        isDual: true,
-        sceneData: sceneData
-      };
-    } else {
-      var html = toHtml(d.content, selectedBass);
-      currentPresetData = { artist: correctedArtist, song: correctedSong, bass: bassLabel, content: d.content, isDual: false };
-      document.getElementById('outputContent').innerHTML = html;
+  streamChat(
+    chatHistory,
+    isDualMode ? SYSTEM_DUAL : SYSTEM_ANALYZE,
+    function(partial) {
+      // Live preview tijdens streamen
+      document.getElementById('outputContent').innerHTML =
+        '<div style="font-size:0.75rem;line-height:1.7;color:var(--text-dim);white-space:pre-wrap;padding:0.5rem 0">' + partial + '</div>';
+    },
+    function(fullText) {
+      chatHistory.push({ role: 'assistant', content: fullText });
+      var correctedArtist = artist, correctedSong = song;
+      fullText.split('\n').forEach(function(l) {
+        l = l.trim();
+        if (l.startsWith('ARTIEST:')) correctedArtist = l.replace('ARTIEST:', '').trim();
+        if (l.startsWith('SONG:')) correctedSong = l.replace('SONG:', '').trim();
+      });
+      if (isDualMode) {
+        var parts = splitDualResponse(fullText);
+        sceneData.spector = { content: parts.spector, html: toHtml(parts.spector, 'spector') };
+        sceneData.pbass   = { content: parts.pbass,   html: toHtml(parts.pbass, 'pbass') };
+        activeScene = 'spector';
+        document.getElementById('outputContent').innerHTML = sceneData.spector.html;
+        currentPresetData = { artist: correctedArtist, song: correctedSong, bass: 'Beide bassen', isDual: true, sceneData: sceneData };
+      } else {
+        var html = toHtml(fullText, selectedBass);
+        currentPresetData = { artist: correctedArtist, song: correctedSong, bass: bassLabel, content: fullText, isDual: false };
+        document.getElementById('outputContent').innerHTML = html;
+      }
+      document.getElementById('outputMeta').textContent =
+        correctedArtist.toUpperCase() + ' \u2014 ' + correctedSong.toUpperCase()
+        + (isDualMode ? ' \u00b7 SPECTOR + P-BASS' : ' \u00b7 ' + bassLabel.split('(')[0].trim().toUpperCase());
+      document.getElementById('chatPanel').classList.remove('hidden');
+      document.getElementById('chatMessages').innerHTML = '';
+      if (isDualMode) {
+        document.getElementById('sceneIndicator').classList.remove('hidden');
+        document.getElementById('sceneIndicator').textContent = 'Chat past de actieve scene aan: SCENE 1 \u2014 SPECTOR';
+      } else {
+        document.getElementById('sceneIndicator').classList.add('hidden');
+      }
+      addMsg('assistant', isDualMode
+        ? 'Beide presets klaar! Gebruik de tabs om te wisselen.'
+        : 'Preset klaar! Heb je vragen of wil je de sound verder verfijnen?');
+      document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
+      btn.disabled = false;
+      document.getElementById('btnText').textContent = 'ANALYSEER TONE';
+    },
+    function(err) {
+      document.getElementById('outputContent').innerHTML = '<p style="color:var(--accent2)">Fout: ' + err + '</p>';
+      btn.disabled = false;
+      document.getElementById('btnText').textContent = 'ANALYSEER TONE';
     }
-
-    document.getElementById('outputMeta').textContent =
-      correctedArtist.toUpperCase() + ' \u2014 ' + correctedSong.toUpperCase()
-      + (isDualMode ? ' \u00b7 SPECTOR + P-BASS' : ' \u00b7 ' + bassLabel.split('(')[0].trim().toUpperCase());
-
-    document.getElementById('chatPanel').classList.remove('hidden');
-    document.getElementById('chatMessages').innerHTML = '';
-
-    // Scene indicator in chat
-    if (isDualMode) {
-      document.getElementById('sceneIndicator').classList.remove('hidden');
-      document.getElementById('sceneIndicator').textContent = 'Chat past de actieve scene aan: SCENE 1 \u2014 SPECTOR';
-    } else {
-      document.getElementById('sceneIndicator').classList.add('hidden');
-    }
-
-    addMsg('assistant', isDualMode
-      ? 'Beide presets klaar! Gebruik de tabs om te wisselen. De chat past de actieve scene aan.'
-      : 'Preset klaar! Heb je vragen of wil je de sound verder verfijnen?');
-    document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
-  })
-  .catch(function(e) {
-    document.getElementById('outputContent').innerHTML = '<p style="color:var(--accent2)">Fout: ' + e.message + '</p>';
-  })
-  .finally(function() {
-    btn.disabled = false;
-    document.getElementById('btnText').textContent = 'ANALYSEER TONE';
-  });
+  );
 }
 
 // =====================
@@ -258,35 +244,81 @@ function sendChat() {
     + '\n\nDe gebruiker verfijnt de preset voor: ' + bassForChat + '. '
     + 'Genereer een VOLLEDIG NIEUW bijgewerkt preset-plan in exact hetzelfde formaat. Geen extra uitleg buiten het preset-plan.';
 
+  streamChat(
+    chatHistory,
+    systemChat,
+    function(partial) {
+      document.getElementById('outputContent').innerHTML =
+        '<div style="font-size:0.75rem;line-height:1.7;color:var(--text-dim);white-space:pre-wrap;padding:0.5rem 0">' + partial + '</div>';
+    },
+    function(fullText) {
+      chatHistory.push({ role: 'assistant', content: fullText });
+      var html = toHtml(fullText, isDualMode ? activeScene : selectedBass);
+      document.getElementById('outputContent').innerHTML = html;
+      if (isDualMode) {
+        sceneData[activeScene] = { content: fullText, html: html };
+        if (currentPresetData) currentPresetData.sceneData = sceneData;
+      } else {
+        if (currentPresetData) currentPresetData.content = fullText;
+      }
+      var lastMsg = document.getElementById('chatMessages').lastElementChild;
+      if (lastMsg) { var b = lastMsg.querySelector('.msg-bubble'); if (b) b.innerHTML = '\u2713 Preset bijgewerkt.'; }
+      document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
+    },
+    function(err) {
+      document.getElementById('outputContent').innerHTML = '<p style="color:var(--accent2)">Fout: ' + err + '</p>';
+      var lastMsg = document.getElementById('chatMessages').lastElementChild;
+      if (lastMsg) { var b = lastMsg.querySelector('.msg-bubble'); if (b) b.textContent = 'Fout: ' + err; }
+    }
+  );
+}
+
+// =====================
+// STREAM CHAT HELPER
+// =====================
+function streamChat(messages, system, onChunk, onDone, onError) {
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: chatHistory, system: systemChat })
+    body: JSON.stringify({ messages: messages, system: system })
   })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.error) throw new Error(d.error);
-    chatHistory.push({ role: 'assistant', content: d.content });
-
-    var html = toHtml(d.content, isDualMode ? activeScene : selectedBass);
-    document.getElementById('outputContent').innerHTML = html;
-
-    if (isDualMode) {
-      sceneData[activeScene] = { content: d.content, html: html };
-      if (currentPresetData) currentPresetData.sceneData = sceneData;
-    } else {
-      if (currentPresetData) currentPresetData.content = d.content;
+  .then(function(r) {
+    if (!r.ok) {
+      return r.json().then(function(d) { throw new Error(d.error || 'API fout'); });
     }
+    var reader = r.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+    var fullText = '';
 
-    var lastMsg = document.getElementById('chatMessages').lastElementChild;
-    if (lastMsg) { var b = lastMsg.querySelector('.msg-bubble'); if (b) b.innerHTML = '\u2713 Preset bijgewerkt.'; }
-    document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
+    function read() {
+      reader.read().then(function(result) {
+        if (result.done) {
+          onDone(fullText);
+          return;
+        }
+        buffer += decoder.decode(result.value, { stream: true });
+        var lines = buffer.split('\n');
+        buffer = lines.pop();
+        lines.forEach(function(line) {
+          if (line.startsWith('data: ')) {
+            var data = line.slice(6).trim();
+            if (data === '[DONE]') return;
+            try {
+              var parsed = JSON.parse(data);
+              if (parsed.text) {
+                fullText += parsed.text;
+                onChunk(fullText);
+              }
+            } catch(e) {}
+          }
+        });
+        read();
+      }).catch(function(e) { onError(e.message); });
+    }
+    read();
   })
-  .catch(function(e) {
-    document.getElementById('outputContent').innerHTML = '<p style="color:var(--accent2)">Fout: ' + e.message + '</p>';
-    var lastMsg = document.getElementById('chatMessages').lastElementChild;
-    if (lastMsg) { var b = lastMsg.querySelector('.msg-bubble'); if (b) b.textContent = 'Fout: ' + e.message; }
-  });
+  .catch(function(e) { onError(e.message); });
 }
 
 function addMsg(role, text, id) {
@@ -419,6 +451,43 @@ function laadAllePresets() {
   .catch(function(e) { console.error('Presets laden mislukt:', e.message); });
 }
 laadAllePresets();
+
+// =====================
+// API STATUS CHECK
+// =====================
+function checkApiStatus() {
+  var el = document.getElementById('apiStatus');
+  if (!el) return;
+  el.className = 'api-status ok';
+  el.innerHTML = '<span class="api-status-dot"></span> CHECKING...';
+
+  fetch('/api/status')
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(d) {
+    if (d.hasIncident || d.degraded) {
+      el.className = 'api-status ' + (d.degraded ? 'err' : 'warn');
+      var label = d.degraded ? 'API STORING' : 'API MELDING';
+      var names = (d.incidents || []).map(function(i) { return i.name; }).join(', ');
+      el.innerHTML = '<span class="api-status-dot"></span> ' + label;
+      el.title = names || 'Melding op Anthropic statuspagina';
+    } else {
+      el.className = 'api-status ok';
+      el.innerHTML = '<span class="api-status-dot"></span> API OK';
+      el.title = 'Anthropic API werkt normaal';
+    }
+  })
+  .catch(function(e) {
+    el.className = 'api-status ok';
+    el.innerHTML = '<span class="api-status-dot"></span> API OK';
+    el.title = 'Status: ' + e.message;
+  });
+}
+
+checkApiStatus();
+setInterval(checkApiStatus, 180000);
 
 // =====================
 // B-SNAAR DETECTIE
