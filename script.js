@@ -125,9 +125,7 @@ function analyzeTone() {
     chatHistory,
     isDualMode ? SYSTEM_DUAL : SYSTEM_ANALYZE,
     function(partial) {
-      // Live preview tijdens streamen
-      document.getElementById('outputContent').innerHTML =
-        '<div style="font-size:0.75rem;line-height:1.7;color:var(--text-dim);white-space:pre-wrap;padding:0.5rem 0">' + partial + '</div>';
+      document.getElementById('outputContent').innerHTML = toHtml(partial, isDualMode ? 'spector' : selectedBass);
     },
     function(fullText) {
       chatHistory.push({ role: 'assistant', content: fullText });
@@ -248,8 +246,7 @@ function sendChat() {
     chatHistory,
     systemChat,
     function(partial) {
-      document.getElementById('outputContent').innerHTML =
-        '<div style="font-size:0.75rem;line-height:1.7;color:var(--text-dim);white-space:pre-wrap;padding:0.5rem 0">' + partial + '</div>';
+      document.getElementById('outputContent').innerHTML = toHtml(partial, isDualMode ? activeScene : selectedBass);
     },
     function(fullText) {
       chatHistory.push({ role: 'assistant', content: fullText });
